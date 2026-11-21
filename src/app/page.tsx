@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 const PROFILE_FEATURES = [
   {
     icon: QrCode,
-    title: "QRIS Universal",
+    title: "QRIS",
     desc: "Mendukung pembayaran dari berbagai aplikasi dompet digital dan bank di Indonesia.",
   },
   {
@@ -362,12 +362,12 @@ export default async function HomePage() {
                 Tentang Votingin
               </span>
               <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-                Platform Voting Online untuk Berbagai Ajang & Komunitas
+                Solusi Voting Online Praktis untuk Segala Jenis Acara
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
-                Votingin (votingin.my.id) dirancang untuk penyelenggaraan voting
-                pada ajang duta, lomba bakat, pemilihan organisasi, maupun acara
-                komunitas. Tampilannya ringan dan nyaman digunakan dari ponsel
+                Votingin mempermudah proses pemungutan suara untuk pemilihan duta,
+                ajang pencarian bakat, pemilu organisasi, hingga acara komunitas.
+                Dirancang ringan dan responsif agar tetap nyaman diakses lewat ponsel
                 maupun komputer.
               </p>
             </div>
