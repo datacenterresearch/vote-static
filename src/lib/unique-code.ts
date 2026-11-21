@@ -169,7 +169,9 @@ export interface CreateVoteOrderInput {
   eventId: string;
   candidateId: string;
   voterName: string;
-  voterContact: string;
+  voterContact?: string | null;
+  isAnonymous?: boolean;
+  supportMessage?: string | null;
   sessionKey: string;
   voteQty: number;
 }
@@ -253,7 +255,15 @@ export async function createVoteOrderWithUniqueCode(
         });
 
         if (existingPending) {
-          return { order: existingPending, reused: true };
+          const updatedPending = await tx.voteOrder.update({
+            where: { id: existingPending.id },
+            data: {
+              voterName: input.voterName,
+              isAnonymous: Boolean(input.isAnonymous),
+              supportMessage: input.supportMessage ?? null,
+            },
+          });
+          return { order: updatedPending, reused: true };
         }
 
         const baseAmount = event.pricePerVote * input.voteQty;
@@ -286,7 +296,9 @@ export async function createVoteOrderWithUniqueCode(
             eventId: event.id,
             candidateId: candidate.id,
             voterName: input.voterName,
-            voterContact: input.voterContact,
+            voterContact: input.voterContact ?? null,
+            isAnonymous: Boolean(input.isAnonymous),
+            supportMessage: input.supportMessage ?? null,
             sessionKey: input.sessionKey,
             voteQty: input.voteQty,
             baseAmount,

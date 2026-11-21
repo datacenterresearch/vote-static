@@ -36,24 +36,24 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-slate-100 px-4">
-      <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+    <div className="flex min-h-screen flex-col items-center justify-center px-4 py-8">
+      <div className="w-full max-w-md rounded-3xl border border-slate-200/90 bg-white p-6 shadow-sm sm:p-8">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-slate-900"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          <span>Kembali ke Halaman Voting</span>
+          <span>Kembali ke Beranda</span>
         </Link>
 
         <div className="mt-6 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-600 text-white">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-xs">
             <ShieldCheck className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Login Panitia</h1>
+            <h1 className="text-xl font-bold text-slate-900">Login Admin</h1>
             <p className="text-xs text-slate-500">
-              Masuk untuk mengelola event, mutasi & rekonsiliasi
+              Masuk untuk mengelola event dan transaksi
             </p>
           </div>
         </div>
@@ -68,7 +68,7 @@ export default function AdminLoginPage() {
               <input
                 type="password"
                 required
-                placeholder="Masukkan ADMIN_PASSWORD"
+                placeholder="Masukkan password admin"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full rounded-xl border border-slate-300 py-2.5 pl-10 pr-4 text-sm focus:border-indigo-500 focus:outline-none"
@@ -85,9 +85,9 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:bg-indigo-400"
+            className="w-full rounded-2xl bg-indigo-600 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-indigo-700 disabled:bg-indigo-400"
           >
-            {loading ? "Memverifikasi..." : "Masuk ke Dashboard"}
+            {loading ? "Memverifikasi..." : "Masuk"}
           </button>
         </form>
       </div>

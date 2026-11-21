@@ -69,9 +69,11 @@ model VoteOrder {
   id           String            @id @default(cuid())
   eventId      String
   candidateId  String
-  voterName    String
-  voterContact String
-  sessionKey   String
+  voterName      String
+  voterContact   String?
+  isAnonymous    Boolean           @default(false)
+  supportMessage String?
+  sessionKey     String
   voteQty      Int
   baseAmount   Int
   uniqueCode   Int

@@ -10,6 +10,7 @@ import {
   Clock,
   Copy,
   FileUp,
+  Heart,
   QrCode,
   RefreshCw,
   XCircle,
@@ -24,6 +25,8 @@ export interface PayOrderDetail {
   id: string;
   status: "PENDING" | "PAID" | "EXPIRED" | "LATE_PAYMENT" | "CANCELLED";
   voterName: string;
+  isAnonymous: boolean;
+  supportMessage: string | null;
   voteQty: number;
   baseAmount: number;
   uniqueCode: number;
@@ -110,6 +113,7 @@ export default function PayOrderClient({
   const remainingSec = Math.floor((remainingMs % 60000) / 1000);
 
   const { prefix, uniqueSuffix } = splitUniqueTotalDisplay(order.totalAmount);
+  const displayVoterName = order.isAnonymous ? "Anonim" : order.voterName;
 
   async function handleCopyAmount() {
     try {
@@ -168,7 +172,7 @@ export default function PayOrderClient({
 
       setProofFeedback({
         type: "ok",
-        text: "Bukti pembayaran berhasil diunggah. Menunggu verifikasi panitia.",
+        text: "Bukti pembayaran terkirim dan menunggu verifikasi panitia.",
       });
       setProofFile(null);
       setRrnInput("");
@@ -189,57 +193,72 @@ export default function PayOrderClient({
       : order.event.qrisImageUrl;
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
-      <div className="mb-5 flex items-center justify-between">
+    <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
         <Link
           href={`/events/${order.event.slug}`}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs ring-1 ring-slate-200 transition hover:bg-slate-50 hover:text-slate-900"
         >
           <ArrowLeft className="h-4 w-4" />
           <span>Kembali ke Event</span>
         </Link>
-        <span className="font-mono text-xs text-slate-500">
-          Order: {order.id.slice(0, 12)}...
+        <span className="rounded-lg bg-white px-2.5 py-1 font-mono text-[11px] text-slate-500 ring-1 ring-slate-200">
+          #{order.id.slice(0, 10)}
         </span>
       </div>
 
       {/* PAID Success Banner */}
       {order.status === "PAID" && (
-        <div className="rounded-3xl border border-emerald-200 bg-white p-8 text-center shadow-sm">
+        <div className="rounded-3xl border border-emerald-200 bg-white p-6 text-center shadow-sm sm:p-8">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
             <CheckCircle2 className="h-9 w-9" />
           </div>
           <h1 className="mt-4 text-2xl font-bold text-slate-900">
-            Vote Berhasil Tercatat!
+            Vote Berhasil Diterima!
           </h1>
-          <p className="mt-2 text-sm text-slate-600">
-            Terima kasih, <strong>{order.voterName}</strong>. Pembayaran sebesar{" "}
-            <strong>{formatRupiah(order.totalAmount)}</strong> telah diverifikasi
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">
+            Terima kasih, <strong>{displayVoterName}</strong>. Pembayaran{" "}
+            <strong>{formatRupiah(order.totalAmount)}</strong> telah diterima
             dan <strong>{order.voteQty} suara</strong> untuk{" "}
             <strong>
               No. {order.candidate.number} {order.candidate.name}
             </strong>{" "}
-            telah masuk ke buku besar suara.
+            sudah tercatat.
           </p>
+
+          {order.supportMessage && (
+            <div className="mx-auto mt-4 max-w-md rounded-2xl border border-rose-100 bg-rose-50/70 px-4 py-3 text-left text-xs text-slate-700">
+              <div className="flex items-center gap-1.5 font-semibold text-rose-700">
+                <Heart className="h-3.5 w-3.5" />
+                <span>Pesan Semangat</span>
+              </div>
+              <p className="mt-1 italic text-slate-700">
+                &ldquo;{order.supportMessage}&rdquo;
+              </p>
+            </div>
+          )}
+
           {order.paidAt && (
-            <p className="mt-2 text-xs text-slate-500">
-              Waktu verifikasi: {formatDateTimeId(order.paidAt)}
+            <p className="mt-3 text-xs text-slate-500">
+              Diverifikasi pada {formatDateTimeId(order.paidAt)}
             </p>
           )}
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Link
               href={`/events/${order.event.slug}`}
-              className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+              className="rounded-2xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-indigo-700"
             >
-              Lihat Klasemen & Event
+              Lihat Hasil Sementara
             </Link>
           </div>
         </div>
       )}
 
-      {/* CANCELLED or EXPIRED state */}
-      {(order.status === "CANCELLED" || order.status === "EXPIRED" || order.status === "LATE_PAYMENT") && (
-        <div className="mb-6 rounded-3xl border border-amber-200 bg-amber-50 p-6">
+      {/* CANCELLED, EXPIRED, or LATE_PAYMENT state */}
+      {(order.status === "CANCELLED" ||
+        order.status === "EXPIRED" ||
+        order.status === "LATE_PAYMENT") && (
+        <div className="mb-6 rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-xs sm:p-6">
           <div className="flex items-start gap-3">
             {order.status === "CANCELLED" ? (
               <XCircle className="mt-0.5 h-6 w-6 shrink-0 text-rose-600" />
@@ -249,22 +268,22 @@ export default function PayOrderClient({
             <div>
               <h2 className="text-base font-bold text-slate-900">
                 {order.status === "CANCELLED"
-                  ? "Order Dibatalkan"
+                  ? "Pesanan Dibatalkan"
                   : order.status === "LATE_PAYMENT"
                   ? "Pembayaran Terlambat Terdeteksi"
-                  : "Waktu Pembayaran Habis (Expired)"}
+                  : "Waktu Pembayaran Habis"}
               </h2>
               <p className="mt-1 text-xs leading-relaxed text-slate-700 sm:text-sm">
                 {order.status === "CANCELLED"
-                  ? "Order ini telah dibatalkan. Silakan buat order vote baru jika ingin memberikan suara."
-                  : "Batas waktu 15 menit telah lewat. Jika Anda sudah terlanjur mentransfer dana, unggah bukti pembayaran di bawah ini agar panitia dapat memverifikasi secara manual."}
+                  ? "Pesanan ini telah dibatalkan. Silakan buat pesanan baru untuk memberikan suara."
+                  : "Batas waktu pembayaran telah berakhir. Jika Anda sudah transfer, unggah bukti pembayaran di bawah untuk dibantu verifikasi oleh panitia."}
               </p>
               <div className="mt-3">
                 <Link
                   href={`/events/${order.event.slug}`}
-                  className="inline-flex items-center rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+                  className="inline-flex items-center rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
                 >
-                  Buat Order Vote Baru
+                  Buat Pesanan Baru
                 </Link>
               </div>
             </div>
@@ -274,13 +293,16 @@ export default function PayOrderClient({
 
       {/* Main Payment Card when PENDING */}
       {order.status === "PENDING" && (
-        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 bg-slate-900 px-6 py-4 text-white">
+        <div className="overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-900 px-5 py-3.5 text-white sm:px-6">
             <div className="flex items-center gap-2 text-xs font-semibold">
               <RefreshCw className="h-3.5 w-3.5 animate-spin text-emerald-400" />
-              <span>Menunggu Pembayaran (Cek otomatis tiap 3 detik)</span>
+              <span>Menunggu Pembayaran</span>
             </div>
-            <div className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 font-mono text-xs font-bold text-amber-300">
+            <div
+              suppressHydrationWarning
+              className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 font-mono text-xs font-bold text-amber-300"
+            >
               <Clock className="h-3.5 w-3.5" />
               <span>
                 {String(remainingMin).padStart(2, "0")}:
@@ -289,12 +311,12 @@ export default function PayOrderClient({
             </div>
           </div>
 
-          <div className="p-6 sm:p-8">
-            <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 text-center">
-              <div className="text-xs font-semibold uppercase tracking-wider text-indigo-700">
-                Transfer Tepat Hingga 3 Digit Terakhir
+          <div className="p-5 sm:p-8">
+            <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/90 to-sky-50/70 p-4 text-center sm:p-5">
+              <div className="text-xs font-bold uppercase tracking-wider text-indigo-700">
+                Total Transfer (Tepat 3 Digit Akhir)
               </div>
-              <div className="mt-2 flex items-center justify-center gap-3">
+              <div className="mt-2.5 flex flex-wrap items-center justify-center gap-3">
                 <div className="font-mono text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
                   <span>Rp{prefix}</span>
                   <span className="rounded-lg bg-amber-300 px-1.5 py-0.5 text-slate-950">
@@ -304,7 +326,7 @@ export default function PayOrderClient({
                 <button
                   type="button"
                   onClick={handleCopyAmount}
-                  className="inline-flex items-center gap-1 rounded-xl border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-white px-3.5 py-2 text-xs font-semibold text-indigo-700 shadow-2xs transition hover:bg-indigo-50"
                 >
                   {copied ? (
                     <>
@@ -320,8 +342,8 @@ export default function PayOrderClient({
                 </button>
               </div>
               <div className="mt-2 text-xs text-slate-600">
-                Harga {order.voteQty} vote ({formatRupiah(order.baseAmount)}) +
-                Kode Unik{" "}
+                {order.voteQty} vote ({formatRupiah(order.baseAmount)}) + Kode
+                Unik{" "}
                 <strong className="text-slate-900">
                   {String(order.uniqueCode).padStart(3, "0")}
                 </strong>
@@ -331,19 +353,18 @@ export default function PayOrderClient({
             {/* QRIS Code Section */}
             <div className="mt-6 flex flex-col items-center">
               {activeQrImage ? (
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
                   <img
                     src={activeQrImage}
                     alt="QRIS Pembayaran Vote"
-                    className="h-64 w-64 object-contain"
+                    className="h-60 w-60 object-contain sm:h-64 sm:w-64"
                   />
                 </div>
               ) : (
-                <div className="flex h-64 w-64 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-xs text-slate-500">
+                <div className="flex h-60 w-60 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-xs text-slate-500 sm:h-64 sm:w-64">
                   <QrCode className="mb-2 h-8 w-8 text-slate-400" />
                   <span>
-                    Gambar QRIS belum diunggah oleh panitia. Silakan hubungi
-                    panitia atau unggah bukti jika sudah menerima QRIS.
+                    Gambar QRIS belum tersedia. Silakan hubungi panitia.
                   </span>
                 </div>
               )}
@@ -355,38 +376,46 @@ export default function PayOrderClient({
                   className="mt-3 text-xs font-semibold text-indigo-600 underline-offset-2 hover:underline"
                 >
                   {useStaticFallback
-                    ? "Gunakan QRIS Nominal Otomatis (Tag 54)"
-                    : "QRIS gagal terbaca di e-wallet? Pakai Gambar QRIS Statis Asli"}
+                    ? "Gunakan QRIS Nominal Otomatis"
+                    : "Gagal scan? Gunakan gambar QRIS statis"}
                 </button>
               )}
 
-              <p className="mt-3 max-w-md text-center text-xs text-slate-500">
+              <p className="mt-3 max-w-md text-center text-xs leading-relaxed text-slate-500">
                 {useStaticFallback || !order.dynamicQrisDataUrl
-                  ? "Scan QRIS Statis di atas menggunakan aplikasi bank/e-wallet, lalu masukkan nominal PERSIS sesuai angka yang ditandai kuning."
-                  : "Scan QRIS di atas — nominal unik sudah otomatis terisi di aplikasi pembayaran Anda."}
+                  ? "Scan QRIS di atas dengan aplikasi bank atau e-wallet, lalu masukkan nominal persis sampai 3 digit terakhir."
+                  : "Scan QRIS di atas menggunakan aplikasi bank atau e-wallet Anda."}
               </p>
             </div>
 
             {/* Order Summary */}
-            <div className="mt-6 rounded-2xl bg-slate-50 p-4 text-xs text-slate-600 space-y-1.5">
-              <div className="flex justify-between">
+            <div className="mt-6 space-y-2 rounded-2xl bg-slate-50 p-4 text-xs text-slate-600">
+              <div className="flex items-start justify-between gap-3">
                 <span>Event</span>
-                <span className="font-semibold text-slate-900">
+                <span className="text-right font-semibold text-slate-900">
                   {order.event.title}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span>Kandidat Pilihan</span>
-                <span className="font-semibold text-slate-900">
+              <div className="flex items-start justify-between gap-3">
+                <span>Kandidat</span>
+                <span className="text-right font-semibold text-slate-900">
                   No. {order.candidate.number} — {order.candidate.name}
                 </span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex items-start justify-between gap-3">
                 <span>Pemilih</span>
-                <span className="font-semibold text-slate-900">
-                  {order.voterName} ({order.voteQty} vote)
+                <span className="text-right font-semibold text-slate-900">
+                  {displayVoterName} ({order.voteQty} vote)
                 </span>
               </div>
+              {order.supportMessage && (
+                <div className="border-t border-slate-200/70 pt-2">
+                  <span className="block text-slate-500">Pesan Semangat</span>
+                  <p className="mt-0.5 italic text-slate-800">
+                    &ldquo;{order.supportMessage}&rdquo;
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="mt-5 flex justify-end">
@@ -394,35 +423,34 @@ export default function PayOrderClient({
                 type="button"
                 disabled={cancelling}
                 onClick={handleCancelOrder}
-                className="text-xs font-semibold text-rose-600 hover:text-rose-700 disabled:opacity-50"
+                className="text-xs font-semibold text-rose-600 transition hover:text-rose-700 disabled:opacity-50"
               >
-                {cancelling ? "Membatalkan..." : "Batalkan Order Ini"}
+                {cancelling ? "Membatalkan..." : "Batalkan Pesanan"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Manual Proof Upload Section (shown when PENDING, EXPIRED, or LATE_PAYMENT) */}
+      {/* Manual Proof Upload Section */}
       {order.status !== "PAID" && order.status !== "CANCELLED" && (
-        <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mt-6 rounded-3xl border border-slate-200/90 bg-white p-5 shadow-xs sm:p-6">
           <div className="flex items-center gap-2">
             <FileUp className="h-5 w-5 text-indigo-600" />
             <h2 className="text-base font-bold text-slate-900">
-              Sudah Transfer Tapi Status Belum Berubah?
+              Unggah Bukti Pembayaran
             </h2>
           </div>
-          <p className="mt-1 text-xs text-slate-600">
-            Unggah tangkapan layar bukti transfer QRIS untuk verifikasi manual
-            panitia. Sistem menolak unggahan gambar bukti yang sama secara
-            ganda.
+          <p className="mt-1 text-xs leading-relaxed text-slate-600">
+            Jika sudah transfer namun status belum berubah, unggah tangkapan
+            layar bukti bayar Anda di sini.
           </p>
 
           {order.latestProof && (
             <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-xs">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <span className="font-semibold text-slate-700">
-                  Bukti Terakhir Diunggah
+                  Status Bukti Terakhir
                 </span>
                 <span
                   className={`rounded-full px-2.5 py-0.5 font-semibold ${
@@ -438,7 +466,7 @@ export default function PayOrderClient({
               </div>
               {order.latestProof.rrnInput && (
                 <div className="mt-1 text-slate-600">
-                  RRN / Ref: {order.latestProof.rrnInput}
+                  Referensi: {order.latestProof.rrnInput}
                 </div>
               )}
             </div>
@@ -447,7 +475,7 @@ export default function PayOrderClient({
           <form onSubmit={handleProofSubmit} className="mt-4 space-y-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700">
-                Foto / Screenshot Bukti Bayar (PNG, JPG, WEBP maks 5MB)
+                Gambar Bukti Transfer (PNG, JPG, WEBP maks 5MB)
               </label>
               <input
                 type="file"
@@ -460,11 +488,11 @@ export default function PayOrderClient({
 
             <div>
               <label className="block text-xs font-semibold text-slate-700">
-                Nomor Referensi / RRN (Opsional)
+                Nomor Referensi (Opsional)
               </label>
               <input
                 type="text"
-                placeholder="Contoh: 412345678901"
+                placeholder="Masukkan nomor referensi transfer"
                 value={rrnInput}
                 onChange={(e) => setRrnInput(e.target.value)}
                 className="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2 text-xs focus:border-indigo-500 focus:outline-none"

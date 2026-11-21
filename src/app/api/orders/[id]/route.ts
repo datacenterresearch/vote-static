@@ -59,6 +59,8 @@ export async function GET(
       id: order.id,
       status: order.status,
       voterName: order.voterName,
+      isAnonymous: order.isAnonymous,
+      supportMessage: order.supportMessage,
       voteQty: order.voteQty,
       baseAmount: order.baseAmount,
       uniqueCode: order.uniqueCode,

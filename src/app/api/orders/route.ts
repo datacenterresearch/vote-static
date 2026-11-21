@@ -35,10 +35,15 @@ export async function POST(req: NextRequest) {
   const eventId = typeof body.eventId === "string" ? body.eventId.trim() : "";
   const candidateId =
     typeof body.candidateId === "string" ? body.candidateId.trim() : "";
-  const voterName =
+  const isAnonymous = body.isAnonymous === true;
+  const rawVoterName =
     typeof body.voterName === "string" ? body.voterName.trim() : "";
-  const voterContact =
-    typeof body.voterContact === "string" ? body.voterContact.trim() : "";
+  const voterName = isAnonymous ? "Anonim" : rawVoterName;
+  const rawSupportMessage =
+    typeof body.supportMessage === "string" ? body.supportMessage.trim() : "";
+  const supportMessage = rawSupportMessage
+    ? rawSupportMessage.slice(0, 200)
+    : null;
   const sessionKey =
     typeof body.sessionKey === "string" ? body.sessionKey.trim() : "";
   const voteQty =
@@ -49,14 +54,12 @@ export async function POST(req: NextRequest) {
   if (
     !eventId ||
     !candidateId ||
-    voterName.length < 2 ||
-    voterContact.length < 4 ||
+    (!isAnonymous && voterName.length < 2) ||
     sessionKey.length < 8
   ) {
     return NextResponse.json(
       {
-        error:
-          "Data pemilih tidak lengkap (nama min 2 karakter, kontak min 4 karakter).",
+        error: "Data pemilih tidak lengkap (nama minimal 2 karakter).",
       },
       { status: 400 }
     );
@@ -74,7 +77,8 @@ export async function POST(req: NextRequest) {
       eventId,
       candidateId,
       voterName: voterName.slice(0, 120),
-      voterContact: voterContact.slice(0, 120),
+      isAnonymous,
+      supportMessage,
       sessionKey: sessionKey.slice(0, 120),
       voteQty,
     });

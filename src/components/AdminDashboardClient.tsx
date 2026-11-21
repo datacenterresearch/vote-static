@@ -13,8 +13,10 @@ import {
   LogOut,
   Plus,
   RefreshCw,
+  Settings,
   ShieldCheck,
   Trash2,
+  X,
   XCircle,
 } from "lucide-react";
 import { formatDateTimeId, formatRupiah } from "@/lib/format";
@@ -49,7 +51,8 @@ interface OrderItem {
   id: string;
   eventId: string;
   voterName: string;
-  voterContact: string;
+  isAnonymous: boolean;
+  supportMessage: string | null;
   voteQty: number;
   baseAmount: number;
   uniqueCode: number;
@@ -87,6 +90,7 @@ interface ProofItem {
   order: {
     id: string;
     voterName: string;
+    isAnonymous?: boolean;
     totalAmount: number;
     status: string;
     event: { title: string; slug: string };
@@ -130,6 +134,15 @@ interface OverviewPayload {
 
 type AdminTab = "overview" | "events" | "reconcile" | "simulator" | "audit";
 
+function toDateTimeLocalValue(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
+    d.getHours()
+  )}:${pad(d.getMinutes())}`;
+}
+
 export default function AdminDashboardClient() {
   const router = useRouter();
   const [data, setData] = useState<OverviewPayload | null>(null);
@@ -147,14 +160,30 @@ export default function AdminDashboardClient() {
   const [evPrice, setEvPrice] = useState(2000);
   const [evCutoff, setEvCutoff] = useState(15);
   const [evStarts, setEvStarts] = useState(() =>
-    new Date(Date.now() - 3600_000).toISOString().slice(0, 16)
+    toDateTimeLocalValue(new Date(Date.now() - 3600_000).toISOString())
   );
   const [evEnds, setEvEnds] = useState(() =>
-    new Date(Date.now() + 7 * 86400_000).toISOString().slice(0, 16)
+    toDateTimeLocalValue(new Date(Date.now() + 7 * 86400_000).toISOString())
   );
   const [evQrisRaw, setEvQrisRaw] = useState("");
   const [evQrisFile, setEvQrisFile] = useState<File | null>(null);
   const [evBlind, setEvBlind] = useState(false);
+
+  // Edit Event Settings modal state
+  const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editSlug, setEditSlug] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [editPrice, setEditPrice] = useState(2000);
+  const [editCutoff, setEditCutoff] = useState(15);
+  const [editStarts, setEditStarts] = useState("");
+  const [editEnds, setEditEnds] = useState("");
+  const [editQrisRaw, setEditQrisRaw] = useState("");
+  const [editQrisFile, setEditQrisFile] = useState<File | null>(null);
+  const [editBlind, setEditBlind] = useState(false);
+  const [editActive, setEditActive] = useState(true);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   // Create Candidate form state
   const [candEventId, setCandEventId] = useState("");
@@ -200,6 +229,64 @@ export default function AdminDashboardClient() {
   useEffect(() => {
     loadOverview();
   }, [loadOverview]);
+
+  function openEventSettings(ev: EventItem) {
+    setEditingEvent(ev);
+    setEditTitle(ev.title);
+    setEditSlug(ev.slug);
+    setEditDesc(ev.description ?? "");
+    setEditPrice(ev.pricePerVote);
+    setEditCutoff(ev.orderCutoffMinutes);
+    setEditStarts(toDateTimeLocalValue(ev.startsAt));
+    setEditEnds(toDateTimeLocalValue(ev.endsAt));
+    setEditQrisRaw(ev.qrisRawPayload ?? "");
+    setEditQrisFile(null);
+    setEditBlind(ev.isBlindMode);
+    setEditActive(ev.isActive);
+    setEditError(null);
+  }
+
+  async function handleSaveEventSettings(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingEvent) return;
+
+    setSavingSettings(true);
+    setEditError(null);
+    try {
+      const formData = new FormData();
+      formData.append("title", editTitle);
+      formData.append("slug", editSlug);
+      formData.append("description", editDesc);
+      formData.append("pricePerVote", String(editPrice));
+      formData.append("orderCutoffMinutes", String(editCutoff));
+      formData.append("startsAt", new Date(editStarts).toISOString());
+      formData.append("endsAt", new Date(editEnds).toISOString());
+      formData.append("qrisRawPayload", editQrisRaw);
+      formData.append("isBlindMode", String(editBlind));
+      formData.append("isActive", String(editActive));
+      if (editQrisFile) {
+        formData.append("qrisImage", editQrisFile);
+      }
+
+      const res = await fetch(`/api/admin/events/${editingEvent.id}`, {
+        method: "PATCH",
+        body: formData,
+      });
+      const json = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setEditError(json.error ?? "Gagal menyimpan pengaturan event.");
+        return;
+      }
+
+      setEditingEvent(null);
+      notify("ok", "Pengaturan event berhasil disimpan.");
+      await loadOverview();
+    } catch {
+      setEditError("Gangguan jaringan saat menyimpan pengaturan.");
+    } finally {
+      setSavingSettings(false);
+    }
+  }
 
   async function handleLogout() {
     await fetch("/api/admin/auth", { method: "DELETE" });
@@ -253,7 +340,7 @@ export default function AdminDashboardClient() {
       body: JSON.stringify({ [field]: !event[field] }),
     });
     if (res.ok) {
-      notify("ok", `Status ${field} event diperbarui.`);
+      notify("ok", "Status event diperbarui.");
       await loadOverview();
     }
   }
@@ -343,7 +430,7 @@ export default function AdminDashboardClient() {
     notify(
       "ok",
       mode === "APPROVE_PROOF"
-        ? "Bukti disetujui & suara dicatat."
+        ? "Bukti disetujui dan suara dicatat."
         : "Bukti ditolak."
     );
     await loadOverview();
@@ -365,7 +452,7 @@ export default function AdminDashboardClient() {
       notify("err", json.error ?? "Gagal menautkan mutasi.");
       return;
     }
-    notify("ok", "Mutasi ditautkan dan order di-settle.");
+    notify("ok", "Mutasi ditautkan dan order selesai diproses.");
     setLinkMutationId("");
     setLinkOrderId("");
     await loadOverview();
@@ -374,7 +461,7 @@ export default function AdminDashboardClient() {
   if (loading || !data) {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-slate-500">
-        Memuat dashboard panitia...
+        Memuat dashboard admin...
       </div>
     );
   }
@@ -392,33 +479,33 @@ export default function AdminDashboardClient() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+      <header className="sticky top-0 z-30 border-b border-slate-200/90 bg-white/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3.5 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs">
               <ShieldCheck className="h-5 w-5" />
             </div>
             <div>
               <h1 className="text-base font-bold text-slate-900">
-                Dashboard Panitia VoteQRIS
+                Dashboard Admin
               </h1>
               <p className="text-xs text-slate-500">
-                Audit Dana, Manajemen Event & Simulator Mutasi
+                Kelola Event, Order, dan Rekonsiliasi
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               href="/"
-              className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
             >
               Halaman Publik
             </Link>
             <button
               type="button"
               onClick={loadOverview}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
             >
               <RefreshCw className="h-3.5 w-3.5" />
               <span>Refresh</span>
@@ -426,7 +513,7 @@ export default function AdminDashboardClient() {
             <button
               type="button"
               onClick={handleLogout}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
             >
               <LogOut className="h-3.5 w-3.5" />
               <span>Keluar</span>
@@ -456,7 +543,7 @@ export default function AdminDashboardClient() {
               onClick={() => setTab(key)}
               className={`shrink-0 rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
                 tab === key
-                  ? "bg-indigo-600 text-white"
+                  ? "bg-indigo-600 text-white shadow-xs"
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
               }`}
             >
@@ -469,7 +556,7 @@ export default function AdminDashboardClient() {
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         {toast && (
           <div
-            className={`mb-5 rounded-2xl border px-4 py-3 text-xs font-semibold ${
+            className={`mb-5 rounded-2xl border px-4 py-3 text-xs font-semibold shadow-xs ${
               toast.type === "ok"
                 ? "border-emerald-200 bg-emerald-50 text-emerald-800"
                 : "border-rose-200 bg-rose-50 text-rose-800"
@@ -479,11 +566,11 @@ export default function AdminDashboardClient() {
           </div>
         )}
 
-        {/* Audit Summary Cards */}
+        {/* Summary Cards */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5">
-            <div className="text-xs text-slate-500">
-              Total Dana Masuk (Order PAID)
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs">
+            <div className="text-xs font-medium text-slate-500">
+              Total Dana Masuk
             </div>
             <div className="mt-1 text-2xl font-bold text-slate-900">
               {formatRupiah(data.summary.totalPaidAmount)}
@@ -494,9 +581,9 @@ export default function AdminDashboardClient() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5">
-            <div className="text-xs text-slate-500">
-              Total Suara Sah (VoteLedger)
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs">
+            <div className="text-xs font-medium text-slate-500">
+              Total Suara Sah
             </div>
             <div className="mt-1 text-2xl font-bold text-indigo-700">
               {new Intl.NumberFormat("id-ID").format(
@@ -504,31 +591,31 @@ export default function AdminDashboardClient() {
               )}
             </div>
             <div className="mt-1 text-[11px] text-slate-500">
-              {data.summary.totalLedgerEntries} entri buku besar immutable
+              {data.summary.totalLedgerEntries} transaksi tercatat
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5">
-            <div className="text-xs text-slate-500">
-              Mutasi Cocok (PaymentMutation)
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs">
+            <div className="text-xs font-medium text-slate-500">
+              Mutasi Terverifikasi
             </div>
             <div className="mt-1 text-2xl font-bold text-emerald-700">
               {formatRupiah(data.summary.totalMatchedMutationsAmount)}
             </div>
             <div className="mt-1 text-[11px] text-slate-500">
-              {data.summary.totalMatchedMutationsCount} mutasi MATCHED •{" "}
-              {unmatchedMutations.length} UNMATCHED
+              {data.summary.totalMatchedMutationsCount} cocok •{" "}
+              {unmatchedMutations.length} belum cocok
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5">
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <span>Status Listener Mutasi</span>
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs">
+            <div className="flex items-center justify-between text-xs font-medium text-slate-500">
+              <span>Status Listener</span>
               <Activity className="h-4 w-4 text-slate-400" />
             </div>
             {data.heartbeats.length === 0 ? (
               <div className="mt-2 text-xs font-medium text-amber-700">
-                Belum ada listener terhubung (Mode Simulator / Manual aktif)
+                Belum ada perangkat listener terhubung
               </div>
             ) : (
               <div className="mt-2 space-y-1">
@@ -558,43 +645,52 @@ export default function AdminDashboardClient() {
 
         {/* Tab: Overview */}
         {tab === "overview" && (
-          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-sm font-bold text-slate-900">
-                Daftar Order Vote Terbaru ({data.orders.length})
+                Daftar Order Terbaru ({data.orders.length})
               </h2>
               <span className="text-xs text-slate-500">
-                Order PENDING aktif: {pendingOrders.length}
+                Menunggu bayar: {pendingOrders.length}
               </span>
             </div>
             <div className="mt-4 overflow-x-auto">
-              <table className="w-full text-left text-xs">
+              <table className="w-full min-w-[680px] text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500">
-                    <th className="py-2 pr-3">Waktu</th>
-                    <th className="py-2 pr-3">Pemilih</th>
-                    <th className="py-2 pr-3">Event & Kandidat</th>
-                    <th className="py-2 pr-3">Qty</th>
-                    <th className="py-2 pr-3">Nominal Unik</th>
-                    <th className="py-2 pr-3">Status</th>
-                    <th className="py-2">Aksi Cepat</th>
+                    <th className="py-2.5 pr-3">Waktu</th>
+                    <th className="py-2.5 pr-3">Pemilih</th>
+                    <th className="py-2.5 pr-3">Event & Kandidat</th>
+                    <th className="py-2.5 pr-3">Qty</th>
+                    <th className="py-2.5 pr-3">Nominal</th>
+                    <th className="py-2.5 pr-3">Status</th>
+                    <th className="py-2.5">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {data.orders.map((o) => (
                     <tr key={o.id}>
-                      <td className="py-2.5 pr-3 text-slate-500">
+                      <td className="py-3 pr-3 whitespace-nowrap text-slate-500">
                         {formatDateTimeId(o.createdAt)}
                       </td>
-                      <td className="py-2.5 pr-3">
-                        <div className="font-semibold text-slate-900">
-                          {o.voterName}
+                      <td className="py-3 pr-3">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-semibold text-slate-900">
+                            {o.isAnonymous ? "Anonim" : o.voterName}
+                          </span>
+                          {o.isAnonymous && (
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                              Anonim
+                            </span>
+                          )}
                         </div>
-                        <div className="text-[11px] text-slate-500">
-                          {o.voterContact}
-                        </div>
+                        {o.supportMessage && (
+                          <div className="mt-0.5 max-w-xs truncate text-[11px] italic text-slate-500">
+                            &ldquo;{o.supportMessage}&rdquo;
+                          </div>
+                        )}
                       </td>
-                      <td className="py-2.5 pr-3">
+                      <td className="py-3 pr-3">
                         <div className="font-medium text-slate-800">
                           {o.event.title}
                         </div>
@@ -602,11 +698,11 @@ export default function AdminDashboardClient() {
                           No. {o.candidate.number} {o.candidate.name}
                         </div>
                       </td>
-                      <td className="py-2.5 pr-3 font-semibold">{o.voteQty}</td>
-                      <td className="py-2.5 pr-3 font-mono font-bold text-slate-900">
+                      <td className="py-3 pr-3 font-semibold">{o.voteQty}</td>
+                      <td className="py-3 pr-3 font-mono font-bold text-slate-900">
                         {formatRupiah(o.totalAmount)}
                       </td>
-                      <td className="py-2.5 pr-3">
+                      <td className="py-3 pr-3">
                         <span
                           className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
                             o.status === "PAID"
@@ -621,7 +717,7 @@ export default function AdminDashboardClient() {
                           {o.status}
                         </span>
                       </td>
-                      <td className="py-2.5">
+                      <td className="py-3">
                         {o.status === "PENDING" && (
                           <button
                             type="button"
@@ -632,7 +728,7 @@ export default function AdminDashboardClient() {
                             }}
                             className="text-xs font-semibold text-indigo-600 hover:underline"
                           >
-                            Simulasikan Bayar
+                            Simulasi Bayar
                           </button>
                         )}
                       </td>
@@ -642,9 +738,9 @@ export default function AdminDashboardClient() {
                     <tr>
                       <td
                         colSpan={7}
-                        className="py-6 text-center text-slate-500"
+                        className="py-8 text-center text-slate-500"
                       >
-                        Belum ada transaksi order.
+                        Belum ada pesanan vote.
                       </td>
                     </tr>
                   )}
@@ -659,11 +755,11 @@ export default function AdminDashboardClient() {
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
             <form
               onSubmit={handleCreateEvent}
-              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4"
+              className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6"
             >
               <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
                 <Plus className="h-4 w-4 text-indigo-600" />
-                <span>Buat Event Voting Baru</span>
+                <span>Buat Event Baru</span>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
@@ -676,8 +772,8 @@ export default function AdminDashboardClient() {
                     required
                     value={evTitle}
                     onChange={(e) => setEvTitle(e.target.value)}
-                    placeholder="Pemilihan Duta Kampus 2026"
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs"
+                    placeholder="Pemilihan Duta Kampus"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -690,7 +786,7 @@ export default function AdminDashboardClient() {
                     value={evSlug}
                     onChange={(e) => setEvSlug(e.target.value)}
                     placeholder="duta-kampus-2026"
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -703,14 +799,14 @@ export default function AdminDashboardClient() {
                   rows={2}
                   value={evDesc}
                   onChange={(e) => setEvDesc(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs"
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700">
-                    Harga 1 Vote (Min Rp1.000)
+                    Harga per Vote (Min Rp1.000)
                   </label>
                   <input
                     type="number"
@@ -718,12 +814,12 @@ export default function AdminDashboardClient() {
                     required
                     value={evPrice}
                     onChange={(e) => setEvPrice(Number(e.target.value))}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700">
-                    Cutoff Order (Menit sblm tutup)
+                    Batas Order (Menit sblm tutup)
                   </label>
                   <input
                     type="number"
@@ -731,7 +827,7 @@ export default function AdminDashboardClient() {
                     required
                     value={evCutoff}
                     onChange={(e) => setEvCutoff(Number(e.target.value))}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -739,68 +835,69 @@ export default function AdminDashboardClient() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700">
-                    Mulai
+                    Waktu Mulai
                   </label>
                   <input
                     type="datetime-local"
                     required
                     value={evStarts}
                     onChange={(e) => setEvStarts(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700">
-                    Berakhir
+                    Waktu Berakhir
                   </label>
                   <input
                     type="datetime-local"
                     required
                     value={evEnds}
                     onChange={(e) => setEvEnds(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700">
-                  Gambar QRIS Statis (Opsional, PNG/JPG/WEBP)
+                  Gambar QRIS (Opsional, PNG/JPG/WEBP)
                 </label>
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
                   onChange={(e) => setEvQrisFile(e.target.files?.[0] ?? null)}
-                  className="mt-1 block w-full text-xs"
+                  className="mt-1 block w-full text-xs text-slate-600"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700">
-                  Raw Payload String QRIS Statis EMVCo (Opsional untuk injeksi
-                  Tag 54 otomatis)
+                  Data String QRIS (Opsional, untuk QR nominal otomatis)
                 </label>
                 <textarea
                   rows={2}
                   value={evQrisRaw}
                   onChange={(e) => setEvQrisRaw(e.target.value)}
-                  placeholder="000201010211...6304XXXX"
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-[11px]"
+                  placeholder="000201010211..."
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-[11px] focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
-              <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+              <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-700">
                 <input
                   type="checkbox"
                   checked={evBlind}
                   onChange={(e) => setEvBlind(e.target.checked)}
                 />
-                <span>Aktifkan Blind Mode (sembunyikan perolehan suara publik)</span>
+                <span>
+                  Aktifkan Blind Mode (sembunyikan perolehan suara publik)
+                </span>
               </label>
 
               <button
                 type="submit"
-                className="w-full rounded-xl bg-indigo-600 py-2.5 text-xs font-semibold text-white hover:bg-indigo-700"
+                className="w-full rounded-xl bg-indigo-600 py-2.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
               >
                 Simpan Event
               </button>
@@ -809,7 +906,7 @@ export default function AdminDashboardClient() {
             {/* Add Candidate Form */}
             <form
               onSubmit={handleCreateCandidate}
-              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4"
+              className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6"
             >
               <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
                 <Plus className="h-4 w-4 text-indigo-600" />
@@ -824,7 +921,7 @@ export default function AdminDashboardClient() {
                   required
                   value={candEventId}
                   onChange={(e) => setCandEventId(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs"
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
                 >
                   <option value="">-- Pilih Event --</option>
                   {data.events.map((ev) => (
@@ -846,7 +943,7 @@ export default function AdminDashboardClient() {
                     required
                     value={candNumber}
                     onChange={(e) => setCandNumber(Number(e.target.value))}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
                   />
                 </div>
                 <div className="sm:col-span-2">
@@ -859,7 +956,7 @@ export default function AdminDashboardClient() {
                     value={candName}
                     onChange={(e) => setCandName(e.target.value)}
                     placeholder="Nama Lengkap Kandidat"
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -872,7 +969,7 @@ export default function AdminDashboardClient() {
                   rows={2}
                   value={candDesc}
                   onChange={(e) => setCandDesc(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs"
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
@@ -884,29 +981,29 @@ export default function AdminDashboardClient() {
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
                   onChange={(e) => setCandPhoto(e.target.files?.[0] ?? null)}
-                  className="mt-1 block w-full text-xs"
+                  className="mt-1 block w-full text-xs text-slate-600"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={!candEventId}
-                className="w-full rounded-xl bg-slate-900 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:bg-slate-300"
+                className="w-full rounded-xl bg-slate-900 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:bg-slate-300"
               >
                 Tambah Kandidat
               </button>
             </form>
 
             {/* Existing Events List */}
-            <div className="lg:col-span-2 space-y-4">
+            <div className="space-y-4 lg:col-span-2">
               {data.events.map((ev) => (
                 <div
                   key={ev.id}
-                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <h3 className="text-base font-bold text-slate-900">
                           {ev.title}
                         </h3>
@@ -917,17 +1014,25 @@ export default function AdminDashboardClient() {
                           /events/{ev.slug}
                         </Link>
                       </div>
-                      <p className="text-xs text-slate-500">
+                      <p className="mt-0.5 text-xs text-slate-500">
                         Harga: {formatRupiah(ev.pricePerVote)} • Selesai:{" "}
-                        {formatDateTimeId(ev.endsAt)} • QRIS Dinamis:{" "}
-                        {ev.qrisRawPayload ? "Aktif" : "Fallback Statis"}
+                        {formatDateTimeId(ev.endsAt)} • QRIS:{" "}
+                        {ev.qrisRawPayload ? "Otomatis" : "Statis"}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openEventSettings(ev)}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                      >
+                        <Settings className="h-3.5 w-3.5" />
+                        <span>Pengaturan</span>
+                      </button>
                       <button
                         type="button"
                         onClick={() => handleToggleEventFlag(ev, "isBlindMode")}
-                        className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
                       >
                         {ev.isBlindMode ? (
                           <EyeOff className="h-3.5 w-3.5 text-amber-600" />
@@ -935,16 +1040,16 @@ export default function AdminDashboardClient() {
                           <Eye className="h-3.5 w-3.5 text-emerald-600" />
                         )}
                         <span>
-                          {ev.isBlindMode ? "Blind Mode ON" : "Blind Mode OFF"}
+                          {ev.isBlindMode ? "Blind ON" : "Blind OFF"}
                         </span>
                       </button>
                       <button
                         type="button"
                         onClick={() => handleToggleEventFlag(ev, "isActive")}
-                        className={`rounded-xl px-3 py-1.5 text-xs font-semibold ${
+                        className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
                           ev.isActive
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-slate-100 text-slate-600"
+                            ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                         }`}
                       >
                         {ev.isActive ? "Aktif" : "Nonaktif"}
@@ -952,7 +1057,7 @@ export default function AdminDashboardClient() {
                     </div>
                   </div>
 
-                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {ev.candidates.map((c) => (
                       <div
                         key={c.id}
@@ -969,7 +1074,7 @@ export default function AdminDashboardClient() {
                         <button
                           type="button"
                           onClick={() => handleDeleteCandidate(c.id)}
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
                           title="Hapus kandidat"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -987,10 +1092,12 @@ export default function AdminDashboardClient() {
         {tab === "reconcile" && (
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
             {/* Pending Manual Proofs */}
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
               <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
                 <FileCheck2 className="h-4 w-4 text-indigo-600" />
-                <span>Antrean Bukti Pembayaran Manual ({pendingProofs.length})</span>
+                <span>
+                  Antrean Bukti Pembayaran Manual ({pendingProofs.length})
+                </span>
               </div>
               <div className="mt-4 space-y-4">
                 {pendingProofs.map((p) => (
@@ -1001,7 +1108,7 @@ export default function AdminDashboardClient() {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="font-bold text-slate-900">
-                          {p.order.voterName} —{" "}
+                          {p.order.isAnonymous ? "Anonim" : p.order.voterName} —{" "}
                           {formatRupiah(p.order.totalAmount)}
                         </div>
                         <div className="text-slate-500">
@@ -1023,7 +1130,7 @@ export default function AdminDashboardClient() {
                       </a>
                     </div>
 
-                    <div className="mt-3 flex gap-2">
+                    <div className="mt-3 flex flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={() =>
@@ -1032,7 +1139,7 @@ export default function AdminDashboardClient() {
                         className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-1.5 font-semibold text-white hover:bg-emerald-700"
                       >
                         <CheckCircle2 className="h-3.5 w-3.5" />
-                        <span>Approve & Catat Vote</span>
+                        <span>Setujui & Catat Vote</span>
                       </button>
                       <button
                         type="button"
@@ -1054,14 +1161,14 @@ export default function AdminDashboardClient() {
             </section>
 
             {/* Unmatched Mutations Linker */}
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
               <h2 className="text-sm font-bold text-slate-900">
-                Tautkan Mutasi UNMATCHED ({unmatchedMutations.length})
+                Tautkan Mutasi Belum Cocok ({unmatchedMutations.length})
               </h2>
               <form onSubmit={handleLinkMutation} className="mt-4 space-y-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700">
-                    Pilih Mutasi UNMATCHED
+                    Pilih Mutasi
                   </label>
                   <select
                     required
@@ -1090,7 +1197,8 @@ export default function AdminDashboardClient() {
                     <option value="">-- Pilih Order --</option>
                     {reconcilableOrders.map((o) => (
                       <option key={o.id} value={o.id}>
-                        {formatRupiah(o.totalAmount)} — {o.voterName} ({o.status})
+                        {formatRupiah(o.totalAmount)} —{" "}
+                        {o.isAnonymous ? "Anonim" : o.voterName} ({o.status})
                       </option>
                     ))}
                   </select>
@@ -1099,7 +1207,7 @@ export default function AdminDashboardClient() {
                   type="submit"
                   className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700"
                 >
-                  Tautkan & Settle Order
+                  Tautkan & Selesaikan Order
                 </button>
               </form>
             </section>
@@ -1108,20 +1216,19 @@ export default function AdminDashboardClient() {
 
         {/* Tab: Mutation Simulator */}
         {tab === "simulator" && (
-          <section className="mt-6 max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="mt-6 max-w-xl rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6">
             <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
               <FlaskConical className="h-4 w-4 text-indigo-600" />
               <span>Simulator Mutasi Masuk</span>
             </div>
             <p className="mt-1 text-xs text-slate-600">
-              Uji alur auto-matching nominal unik end-to-end sebelum listener
-              eksternal (Android Notification Listener / Moota) terhubung.
+              Simulasikan mutasi masuk untuk menguji pencocokan nominal unik.
             </p>
 
             <form onSubmit={handleSimulateMutation} className="mt-5 space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700">
-                  Nominal Bruto Masuk (Rp)
+                  Nominal Masuk (Rp)
                 </label>
                 <input
                   type="number"
@@ -1130,27 +1237,26 @@ export default function AdminDashboardClient() {
                   value={simAmount}
                   onChange={(e) => setSimAmount(e.target.value)}
                   placeholder="Contoh: 2123"
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm font-mono font-bold"
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2 font-mono text-sm font-bold"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700">
-                  RRN / Reference ID (Kosongkan untuk auto-generate, isi sama
-                  untuk uji anti-duplikat)
+                  RRN / ID Referensi (Opsional)
                 </label>
                 <input
                   type="text"
                   value={simRrn}
                   onChange={(e) => setSimRrn(e.target.value)}
                   placeholder="Contoh: RRN-TEST-001"
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2 text-xs font-mono"
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2 font-mono text-xs"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700">
-                  Scope Event (Opsional)
+                  Event (Opsional)
                 </label>
                 <select
                   value={simEventId}
@@ -1168,7 +1274,7 @@ export default function AdminDashboardClient() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700">
-                  Raw Pesan Mutasi (Opsional)
+                  Catatan Mutasi (Opsional)
                 </label>
                 <input
                   type="text"
@@ -1191,25 +1297,25 @@ export default function AdminDashboardClient() {
 
         {/* Tab: Audit Log */}
         {tab === "audit" && (
-          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
             <h2 className="text-sm font-bold text-slate-900">
               Riwayat Audit Log (50 Terbaru)
             </h2>
             <div className="mt-4 overflow-x-auto">
-              <table className="w-full text-left text-xs">
+              <table className="w-full min-w-[640px] text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500">
                     <th className="py-2 pr-3">Waktu</th>
                     <th className="py-2 pr-3">Aktor</th>
                     <th className="py-2 pr-3">Aksi</th>
                     <th className="py-2 pr-3">Target</th>
-                    <th className="py-2">Metadata</th>
+                    <th className="py-2">Detail</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {data.auditLogs.map((log) => (
                     <tr key={log.id}>
-                      <td className="py-2 pr-3 text-slate-500">
+                      <td className="py-2 pr-3 whitespace-nowrap text-slate-500">
                         {formatDateTimeId(log.createdAt)}
                       </td>
                       <td className="py-2 pr-3 font-semibold text-slate-800">
@@ -1232,6 +1338,209 @@ export default function AdminDashboardClient() {
           </section>
         )}
       </main>
+
+      {/* Event Settings Modal */}
+      {editingEvent && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 p-0 backdrop-blur-xs sm:items-center sm:p-4">
+          <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:max-w-xl sm:rounded-3xl sm:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">
+                  Pengaturan Event
+                </span>
+                <h2 className="mt-0.5 text-lg font-bold text-slate-900">
+                  {editingEvent.title}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingEvent(null)}
+                className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Tutup pengaturan"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEventSettings} className="mt-5 space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Judul Event
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Slug URL
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editSlug}
+                    onChange={(e) => setEditSlug(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700">
+                  Deskripsi
+                </label>
+                <textarea
+                  rows={2}
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Harga per Vote (Min Rp1.000)
+                  </label>
+                  <input
+                    type="number"
+                    min={1000}
+                    required
+                    value={editPrice}
+                    onChange={(e) => setEditPrice(Number(e.target.value))}
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Batas Order (Menit sblm tutup)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    required
+                    value={editCutoff}
+                    onChange={(e) => setEditCutoff(Number(e.target.value))}
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Waktu Mulai
+                  </label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={editStarts}
+                    onChange={(e) => setEditStarts(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Waktu Berakhir
+                  </label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={editEnds}
+                    onChange={(e) => setEditEnds(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700">
+                  Ganti Gambar QRIS (Opsional)
+                </label>
+                {editingEvent.qrisImageUrl && (
+                  <div className="mt-1.5 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-2">
+                    <img
+                      src={editingEvent.qrisImageUrl}
+                      alt="QRIS saat ini"
+                      className="h-12 w-12 rounded-lg object-contain bg-white"
+                    />
+                    <span className="text-[11px] text-slate-600">
+                      Gambar QRIS saat ini aktif. Unggah file baru jika ingin
+                      mengganti.
+                    </span>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(e) => setEditQrisFile(e.target.files?.[0] ?? null)}
+                  className="mt-2 block w-full text-xs text-slate-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700">
+                  Data String QRIS (Opsional)
+                </label>
+                <textarea
+                  rows={2}
+                  value={editQrisRaw}
+                  onChange={(e) => setEditQrisRaw(e.target.value)}
+                  placeholder="Kosongkan jika tidak menggunakan QR otomatis"
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-[11px] focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-4 rounded-2xl bg-slate-50 p-3.5">
+                <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={editActive}
+                    onChange={(e) => setEditActive(e.target.checked)}
+                  />
+                  <span>Event Aktif</span>
+                </label>
+                <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={editBlind}
+                    onChange={(e) => setEditBlind(e.target.checked)}
+                  />
+                  <span>Blind Mode (Sembunyikan Suara)</span>
+                </label>
+              </div>
+
+              {editError && (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-medium text-rose-700">
+                  {editError}
+                </div>
+              )}
+
+              <div className="flex flex-wrap justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingEvent(null)}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingSettings}
+                  className="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:bg-indigo-400"
+                >
+                  {savingSettings ? "Menyimpan..." : "Simpan Pengaturan"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

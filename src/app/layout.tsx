@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "VoteQRIS — Sistem Voting QRIS Statis",
+  title: "VoteQRIS — Voting Digital",
   description:
-    "Platform voting digital berbasis QRIS Statis dengan verifikasi nominal unik & audit ledger transparan.",
+    "Platform voting digital dengan pembayaran QRIS cepat, praktis, dan transparan.",
 };
 
 export default function RootLayout({
@@ -14,7 +14,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="id">
-      <body className="min-h-screen antialiased">{children}</body>
+      <body className="min-h-screen bg-slate-50 text-slate-900 antialiased selection:bg-indigo-100 selection:text-indigo-900">
+        {children}
+      </body>
     </html>
   );
 }
