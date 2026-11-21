@@ -1,13 +1,85 @@
 import Link from "next/link";
-import { OrderStatus } from "@prisma/client";
-import { ArrowRight, Calendar, QrCode, ShieldCheck, Vote } from "lucide-react";
+import {
+  ArrowRight,
+  Calendar,
+  ChevronDown,
+  Clock,
+  Eye,
+  Heart,
+  HelpCircle,
+  QrCode,
+  ShieldCheck,
+  Vote,
+} from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatDateTimeId, formatRupiah } from "@/lib/format";
-import EventVotingClient, {
-  PublicEventData,
-} from "@/components/EventVotingClient";
 
 export const dynamic = "force-dynamic";
+
+const PROFILE_FEATURES = [
+  {
+    icon: QrCode,
+    title: "QRIS Universal",
+    desc: "Mendukung pembayaran dari berbagai aplikasi dompet digital dan bank di Indonesia.",
+  },
+  {
+    icon: Eye,
+    title: "Transparan & Real-Time",
+    desc: "Perolehan suara diperbarui langsung saat transaksi berhasil diverifikasi.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Privasi Terjaga",
+    desc: "Pemilih tidak diminta nomor HP ataupun kata sandi, serta dapat memilih mode Anonim.",
+  },
+  {
+    icon: Heart,
+    title: "Pesan Semangat",
+    desc: "Sampaikan kalimat dukungan singkat yang tampil di halaman event setelah pembayaran lunas.",
+  },
+];
+
+const VOTE_STEPS = [
+  {
+    step: "01",
+    title: "Pilih Event & Kandidat",
+    desc: "Buka halaman event yang ingin Anda ikuti, lalu pilih kandidat favorit Anda.",
+  },
+  {
+    step: "02",
+    title: "Isi Nama atau Anonim",
+    desc: "Tentukan jumlah vote, masukkan nama atau centang Anonim, dan tambahkan pesan semangat jika ingin.",
+  },
+  {
+    step: "03",
+    title: "Bayar via QRIS",
+    desc: "Scan kode QRIS yang muncul dan pastikan nominal transfer tepat hingga 3 digit kode unik.",
+  },
+  {
+    step: "04",
+    title: "Suara Tercatat Otomatis",
+    desc: "Tunggu beberapa detik hingga status lunas dan dukungan Anda langsung masuk ke perolehan suara.",
+  },
+];
+
+const FAQS = [
+  {
+    q: "Apakah harus membuat akun atau memasukkan nomor HP?",
+    a: "Tidak. Anda bisa langsung memilih kandidat, mengisi nama atau memilih opsi Anonim, lalu melakukan pembayaran QRIS.",
+  },
+  {
+    q: "Mengapa ada 3 digit angka tambahan pada total pembayaran?",
+    a: "Tiga digit kode unik tersebut membantu sistem mengenali pembayaran Anda secara otomatis tanpa perlu menunggu konfirmasi manual.",
+  },
+  {
+    q: "Aplikasi pembayaran apa saja yang didukung?",
+    a: "Semua aplikasi mobile banking dan e-wallet yang mendukung QRIS, seperti BCA, BRI, Mandiri, BNI, GoPay, OVO, DANA, ShopeePay, dan lainnya.",
+  },
+  {
+    q: "Bagaimana jika sudah transfer tetapi status belum berubah?",
+    a: "Anda dapat mengunggah screenshot bukti transfer langsung di halaman pembayaran agar panitia bisa membantu verifikasi.",
+  },
+];
 
 export default async function HomePage() {
   let events: Array<{
@@ -16,33 +88,11 @@ export default async function HomePage() {
     title: string;
     description: string | null;
     pricePerVote: number;
-    qrisImagePath: string | null;
-    qrisRawPayload: string | null;
     startsAt: Date;
     endsAt: Date;
-    orderCutoffMinutes: number;
-    isBlindMode: boolean;
-    isActive: boolean;
-    candidates: Array<{
-      id: string;
-      number: number;
-      name: string;
-      description: string | null;
-      photoPath: string | null;
-      totalVotes: number;
-    }>;
-    orders: Array<{
-      id: string;
-      voterName: string;
-      isAnonymous: boolean;
-      voteQty: number;
-      supportMessage: string | null;
-      paidAt: Date | null;
-      candidate: {
-        number: number;
-        name: string;
-      };
-    }>;
+    _count: {
+      candidates: number;
+    };
   }> = [];
 
   let dbError = false;
@@ -50,20 +100,16 @@ export default async function HomePage() {
     events = await prisma.event.findMany({
       where: { isActive: true },
       orderBy: { createdAt: "desc" },
-      include: {
-        candidates: { orderBy: { number: "asc" } },
-        orders: {
-          where: {
-            status: OrderStatus.PAID,
-            supportMessage: { not: null },
-          },
-          orderBy: { paidAt: "desc" },
-          take: 20,
-          include: {
-            candidate: {
-              select: { number: true, name: true },
-            },
-          },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        description: true,
+        pricePerVote: true,
+        startsAt: true,
+        endsAt: true,
+        _count: {
+          select: { candidates: true },
         },
       },
     });
@@ -71,59 +117,65 @@ export default async function HomePage() {
     dbError = true;
   }
 
-  const mapEvent = (e: (typeof events)[number]): PublicEventData => ({
-    id: e.id,
-    slug: e.slug,
-    title: e.title,
-    description: e.description,
-    pricePerVote: e.pricePerVote,
-    qrisImageUrl: e.qrisImagePath ? `/api/files/${e.qrisImagePath}` : null,
-    hasDynamicQris: Boolean(e.qrisRawPayload),
-    startsAt: e.startsAt.toISOString(),
-    endsAt: e.endsAt.toISOString(),
-    orderCutoffMinutes: e.orderCutoffMinutes,
-    isBlindMode: e.isBlindMode,
-    isActive: e.isActive,
-    totalVotes: e.isBlindMode
-      ? null
-      : e.candidates.reduce((sum, c) => sum + c.totalVotes, 0),
-    candidates: e.candidates.map((c) => ({
-      id: c.id,
-      number: c.number,
-      name: c.name,
-      description: c.description,
-      photoUrl: c.photoPath ? `/api/files/${c.photoPath}` : null,
-      totalVotes: e.isBlindMode ? null : c.totalVotes,
-    })),
-    recentMessages: e.orders
-      .filter((o) => Boolean(o.supportMessage?.trim()))
-      .map((o) => ({
-        id: o.id,
-        voterName: o.isAnonymous ? "Anonim" : o.voterName,
-        isAnonymous: o.isAnonymous,
-        candidateNumber: o.candidate.number,
-        candidateName: o.candidate.name,
-        voteQty: o.voteQty,
-        supportMessage: o.supportMessage as string,
-        paidAt: o.paidAt ? o.paidAt.toISOString() : null,
-      })),
-  });
+  const now = new Date();
+
+  function getEventStatus(startsAt: Date, endsAt: Date) {
+    if (now < startsAt) {
+      return {
+        label: "Akan Datang",
+        badgeClass: "bg-amber-100 text-amber-800 ring-1 ring-amber-200",
+        dotClass: "bg-amber-500",
+      };
+    }
+    if (now >= endsAt) {
+      return {
+        label: "Selesai",
+        badgeClass: "bg-slate-100 text-slate-600 ring-1 ring-slate-200",
+        dotClass: "bg-slate-400",
+      };
+    }
+    return {
+      label: "Sedang Berlangsung",
+      badgeClass: "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200",
+      dotClass: "bg-emerald-500 animate-pulse",
+    };
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
+      {/* Sticky Navbar */}
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/85 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3.5 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs">
               <Vote className="h-5 w-5" />
             </div>
             <div>
               <div className="text-sm font-bold tracking-tight text-slate-900">
-                VoteQRIS
+                Votingin
               </div>
-              <div className="text-[11px] text-slate-500">Voting Digital</div>
+              <div className="text-[11px] text-slate-500">votingin.my.id</div>
             </div>
           </Link>
+
+          <nav
+            aria-label="Navigasi utama"
+            className="hidden items-center gap-6 text-xs font-semibold text-slate-600 md:flex"
+          >
+            <a href="#event" className="transition hover:text-indigo-600">
+              Event Aktif
+            </a>
+            <a href="#profil" className="transition hover:text-indigo-600">
+              Profil
+            </a>
+            <a href="#cara-vote" className="transition hover:text-indigo-600">
+              Cara Vote
+            </a>
+            <a href="#faq" className="transition hover:text-indigo-600">
+              FAQ
+            </a>
+          </nav>
+
           <Link
             href="/admin"
             className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-indigo-200 hover:bg-slate-50"
@@ -135,92 +187,314 @@ export default async function HomePage() {
       </header>
 
       <main className="flex-1">
-        {dbError ? (
-          <div className="mx-auto max-w-xl px-4 py-16 text-center">
-            <div className="rounded-3xl border border-amber-200 bg-amber-50 p-8 shadow-xs">
-              <h1 className="text-xl font-bold text-amber-900">
-                Layanan Sedang Disiapkan
-              </h1>
-              <p className="mt-2 text-sm text-amber-800">
-                Koneksi database belum tersedia. Silakan coba beberapa saat
-                lagi.
-              </p>
-            </div>
-          </div>
-        ) : events.length === 0 ? (
-          <div className="mx-auto max-w-xl px-4 py-16 text-center">
-            <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm sm:p-10">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
-                <QrCode className="h-7 w-7" />
-              </div>
-              <h1 className="mt-5 text-2xl font-bold text-slate-900">
-                Belum Ada Event Aktif
-              </h1>
-              <p className="mt-2 text-sm text-slate-600">
-                Panitia dapat membuat event baru dan menambahkan kandidat
-                melalui halaman Admin.
-              </p>
-              <Link
-                href="/admin"
-                className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
-              >
-                <span>Buka Halaman Admin</span>
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-          </div>
-        ) : events.length === 1 ? (
-          <EventVotingClient initialEvent={mapEvent(events[0])} />
-        ) : (
-          <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Active Events Section */}
+        <section
+          id="event"
+          className="mx-auto max-w-6xl scroll-mt-20 px-4 pt-8 sm:px-6 sm:pt-10 lg:px-8"
+        >
+          <div className="flex flex-wrap items-end justify-between gap-2">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
                 Event Voting Aktif
               </h1>
               <p className="mt-1 text-sm text-slate-600">
-                Pilih event untuk melihat kandidat dan memberikan suara.
+                Pilih event di bawah ini untuk membuka halaman voting dan
+                melihat daftar kandidat.
+              </p>
+            </div>
+            {!dbError && events.length > 0 && (
+              <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+                {events.length} Event Tersedia
+              </span>
+            )}
+          </div>
+
+          {dbError ? (
+            <div className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-6 text-center shadow-2xs sm:p-8">
+              <h3 className="text-base font-bold text-amber-900">
+                Daftar Event Sedang Disiapkan
+              </h3>
+              <p className="mt-1.5 text-sm text-amber-800">
+                Koneksi database belum tersedia saat ini. Silakan muat ulang
+                halaman beberapa saat lagi.
+              </p>
+            </div>
+          ) : events.length === 0 ? (
+            <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xs sm:p-10">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+                <QrCode className="h-6 w-6" />
+              </div>
+              <h3 className="mt-4 text-lg font-bold text-slate-900">
+                Belum Ada Event Aktif Saat Ini
+              </h3>
+              <p className="mx-auto mt-1.5 max-w-md text-sm text-slate-600">
+                Event baru akan tampil di halaman ini setelah diaktifkan oleh
+                panitia melalui panel Admin.
+              </p>
+              <Link
+                href="/admin"
+                className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
+              >
+                <span>Buka Panel Admin</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          ) : events.length === 1 ? (
+            <div className="mt-6">
+              {(() => {
+                const ev = events[0];
+                const status = getEventStatus(ev.startsAt, ev.endsAt);
+                return (
+                  <Link
+                    href={`/events/${ev.slug}`}
+                    className="group flex flex-col justify-between gap-6 rounded-3xl border border-slate-200/90 bg-white p-6 shadow-xs transition hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md sm:p-8 lg:flex-row lg:items-center"
+                  >
+                    <div className="max-w-2xl">
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span
+                          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-semibold ${status.badgeClass}`}
+                        >
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${status.dotClass}`}
+                          />
+                          {status.label}
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700">
+                          {ev._count.candidates} Kandidat
+                        </span>
+                        <span className="rounded-full bg-indigo-50 px-3 py-1 font-bold text-indigo-700">
+                          {formatRupiah(ev.pricePerVote)} / vote
+                        </span>
+                      </div>
+
+                      <h3 className="mt-4 text-xl font-bold text-slate-900 transition group-hover:text-indigo-700 sm:text-2xl">
+                        {ev.title}
+                      </h3>
+
+                      {ev.description && (
+                        <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-slate-600">
+                          {ev.description}
+                        </p>
+                      )}
+
+                      <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-slate-500">
+                        <span className="inline-flex items-center gap-1.5">
+                          <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                          Ditutup: {formatDateTimeId(ev.endsAt)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0">
+                      <span className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-6 py-3.5 text-sm font-semibold text-white shadow-xs transition group-hover:bg-indigo-700 lg:w-auto">
+                        <span>Buka Halaman Voting</span>
+                        <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })()}
+            </div>
+          ) : (
+            <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {events.map((ev) => {
+                const status = getEventStatus(ev.startsAt, ev.endsAt);
+                return (
+                  <Link
+                    key={ev.id}
+                    href={`/events/${ev.slug}`}
+                    className="group flex flex-col rounded-3xl border border-slate-200/90 bg-white p-6 shadow-xs transition hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold ${status.badgeClass}`}
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${status.dotClass}`}
+                        />
+                        {status.label}
+                      </span>
+                      <span className="font-bold text-indigo-600">
+                        {formatRupiah(ev.pricePerVote)} / vote
+                      </span>
+                    </div>
+
+                    <h3 className="mt-4 text-lg font-bold text-slate-900 transition group-hover:text-indigo-700">
+                      {ev.title}
+                    </h3>
+
+                    {ev.description && (
+                      <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-slate-600">
+                        {ev.description}
+                      </p>
+                    )}
+
+                    <div className="mt-auto pt-5 text-xs text-slate-500">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="inline-flex items-center gap-1.5">
+                          <Clock className="h-3.5 w-3.5 text-slate-400" />
+                          {formatDateTimeId(ev.endsAt)}
+                        </span>
+                        <span className="font-semibold text-slate-700">
+                          {ev._count.candidates} Kandidat
+                        </span>
+                      </div>
+                      <div className="mt-4 inline-flex items-center gap-1.5 font-semibold text-indigo-600">
+                        <span>Buka Halaman Voting</span>
+                        <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* Profile Section */}
+        <section
+          id="profil"
+          className="mx-auto max-w-6xl scroll-mt-20 px-4 pt-14 sm:px-6 lg:px-8"
+        >
+          <div className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xs sm:p-10">
+            <div className="max-w-2xl">
+              <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">
+                Tentang Votingin
+              </span>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                Platform Voting Online untuk Berbagai Ajang & Komunitas
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
+                Votingin (votingin.my.id) dirancang untuk penyelenggaraan voting
+                pada ajang duta, lomba bakat, pemilihan organisasi, maupun acara
+                komunitas. Tampilannya ringan dan nyaman digunakan dari ponsel
+                maupun komputer.
               </p>
             </div>
 
-            <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {events.map((ev) => (
-                <Link
-                  key={ev.id}
-                  href={`/events/${ev.slug}`}
-                  className="group flex flex-col rounded-3xl border border-slate-200/90 bg-white p-6 shadow-xs transition hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md"
-                >
-                  <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-700">
-                      {ev.candidates.length} Kandidat
-                    </span>
-                    <span className="font-bold text-indigo-600">
-                      {formatRupiah(ev.pricePerVote)} / vote
-                    </span>
-                  </div>
-                  <h2 className="mt-4 text-lg font-bold text-slate-900 group-hover:text-indigo-700">
-                    {ev.title}
-                  </h2>
-                  {ev.description && (
-                    <p className="mt-2 line-clamp-2 text-sm text-slate-600">
-                      {ev.description}
+            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {PROFILE_FEATURES.map((feat) => {
+                const Icon = feat.icon;
+                return (
+                  <div
+                    key={feat.title}
+                    className="rounded-2xl border border-slate-100 bg-slate-50/80 p-5"
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <h3 className="mt-3.5 text-sm font-bold text-slate-900">
+                      {feat.title}
+                    </h3>
+                    <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
+                      {feat.desc}
                     </p>
-                  )}
-                  <div className="mt-auto pt-5 text-xs text-slate-500">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                      <span>Ditutup: {formatDateTimeId(ev.endsAt)}</span>
-                    </div>
-                    <div className="mt-3 inline-flex items-center gap-1 font-semibold text-indigo-600">
-                      <span>Buka Voting</span>
-                      <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
-                    </div>
                   </div>
-                </Link>
-              ))}
+                );
+              })}
             </div>
           </div>
-        )}
+        </section>
+
+        {/* How to Vote Section */}
+        <section
+          id="cara-vote"
+          className="mx-auto max-w-6xl scroll-mt-20 px-4 pt-14 sm:px-6 lg:px-8"
+        >
+          <div className="max-w-2xl">
+            <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">
+              Panduan Singkat
+            </span>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+              Tata Cara Memberikan Vote
+            </h2>
+            <p className="mt-1.5 text-sm text-slate-600">
+              Ikuti empat langkah berikut untuk memberikan dukungan suara Anda.
+            </p>
+          </div>
+
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {VOTE_STEPS.map((item) => (
+              <div
+                key={item.step}
+                className="flex flex-col rounded-3xl border border-slate-200/90 bg-white p-5 shadow-xs"
+              >
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 font-mono text-xs font-bold text-white">
+                  {item.step}
+                </span>
+                <h3 className="mt-4 text-base font-bold text-slate-900">
+                  {item.title}
+                </h3>
+                <p className="mt-1.5 text-xs leading-relaxed text-slate-600 sm:text-sm">
+                  {item.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* FAQ Section */}
+        <section
+          id="faq"
+          className="mx-auto max-w-6xl scroll-mt-20 px-4 py-14 sm:px-6 lg:px-8"
+        >
+          <div className="flex items-center gap-2">
+            <HelpCircle className="h-5 w-5 text-indigo-600" />
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+              Pertanyaan Umum
+            </h2>
+          </div>
+
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            {FAQS.map((item) => (
+              <details
+                key={item.q}
+                className="group rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xs"
+              >
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-bold text-slate-900">
+                  <span>{item.q}</span>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 transition group-open:rotate-180" />
+                </summary>
+                <p className="mt-3 text-xs leading-relaxed text-slate-600 sm:text-sm">
+                  {item.a}
+                </p>
+              </details>
+            ))}
+          </div>
+        </section>
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-slate-200/80 bg-white">
+        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-4 px-4 py-7 sm:flex-row sm:items-center sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-600 text-white">
+              <Vote className="h-4 w-4" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-slate-900">Votingin</div>
+              <div className="text-xs text-slate-500">
+                © 2026 Votingin • votingin.my.id
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-5 text-xs font-semibold text-slate-600">
+            <a href="#event" className="hover:text-indigo-600">
+              Event Aktif
+            </a>
+            <a href="#profil" className="hover:text-indigo-600">
+              Profil
+            </a>
+            <a href="#cara-vote" className="hover:text-indigo-600">
+              Cara Vote
+            </a>
+            <Link href="/admin" className="hover:text-indigo-600">
+              Admin
+            </Link>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

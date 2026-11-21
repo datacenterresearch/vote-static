@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "VoteQRIS — Voting Digital",
+  title: "Votingin — Platform Voting Digital",
   description:
-    "Platform voting digital dengan pembayaran QRIS cepat, praktis, dan transparan.",
+    "Platform voting digital berbasis QRIS yang cepat, praktis, dan transparan.",
 };
 
 export default function RootLayout({

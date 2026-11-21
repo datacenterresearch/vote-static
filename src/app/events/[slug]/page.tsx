@@ -100,7 +100,7 @@ export default async function EventSlugPage({
                 <Vote className="h-4 w-4" />
               </div>
               <span className="text-sm font-bold tracking-tight text-slate-900">
-                VoteQRIS
+                Votingin
               </span>
             </div>
           </div>
