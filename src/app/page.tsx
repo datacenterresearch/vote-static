@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 const PROFILE_FEATURES = [
   {
     icon: QrCode,
-    title: "QRIS Universal",
+    title: "QRIS",
     desc: "Mendukung pembayaran dari berbagai aplikasi dompet digital dan bank di Indonesia.",
   },
   {
