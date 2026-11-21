@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  EXPIRED
+  LATE_PAYMENT
+  CANCELLED
+}
+
+enum MutationStatus {
+  MATCHED
+  UNMATCHED
+  DUPLICATE
+}
+
+enum ProofStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+model Event {
+  id                 String            @id @default(cuid())
+  slug               String            @unique
+  title              String
+  description        String?
+  pricePerVote       Int
+  qrisImagePath      String?
+  qrisRawPayload     String?
+  startsAt           DateTime
+  endsAt             DateTime
+  orderCutoffMinutes Int               @default(15)
+  isBlindMode        Boolean           @default(false)
+  isActive           Boolean           @default(true)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  candidates         Candidate[]
+  orders             VoteOrder[]
+  mutations          PaymentMutation[]
+}
+
+model Candidate {
+  id          String       @id @default(cuid())
+  eventId     String
+  number      Int
+  name        String
+  photoPath   String?
+  description String?
+  totalVotes  Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  event       Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  orders      VoteOrder[]
+  ledgers     VoteLedger[]
+
+  @@unique([eventId, number])
+  @@index([eventId])
+}
+
+model VoteOrder {
+  id           String            @id @default(cuid())
+  eventId      String
+  candidateId  String
+  voterName    String
+  voterContact String
+  sessionKey   String
+  voteQty      Int
+  baseAmount   Int
+  uniqueCode   Int
+  totalAmount  Int
+  status       OrderStatus       @default(PENDING)
+  expiresAt    DateTime
+  paidAt       DateTime?
+  createdAt    DateTime          @default(now())
+  event        Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  candidate    Candidate         @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  ledger       VoteLedger?
+  proofs       ManualProof[]
+  mutations    PaymentMutation[]
+
+  @@index([eventId, status])
+  @@index([eventId, uniqueCode, expiresAt])
+  @@index([sessionKey, eventId, status])
+}
+
+model PaymentMutation {
+  id             String         @id @default(cuid())
+  eventId        String?
+  amount         Int
+  rrn            String         @unique
+  rawMessage     String?
+  source         String
+  status         MutationStatus
+  matchedOrderId String?
+  transactionAt  DateTime
+  receivedAt     DateTime       @default(now())
+  event          Event?         @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  matchedOrder   VoteOrder?     @relation(fields: [matchedOrderId], references: [id], onDelete: SetNull)
+
+  @@index([amount, status])
+  @@index([receivedAt])
+}
+
+model VoteLedger {
+  id          String    @id @default(cuid())
+  orderId     String    @unique
+  candidateId String
+  voteQty     Int
+  recordedAt  DateTime  @default(now())
+  order       VoteOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId])
+}
+
+model ManualProof {
+  id         String      @id @default(cuid())
+  orderId    String
+  imagePath  String
+  imageHash  String      @unique
+  rrnInput   String?
+  status     ProofStatus @default(PENDING_REVIEW)
+  reviewedBy String?
+  reviewNote String?
+  createdAt  DateTime    @default(now())
+  order      VoteOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([status])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actor     String
+  action    String
+  targetId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([action])
+}
+
+model ListenerHeartbeat {
+  id         String   @id @default(cuid())
+  deviceName String   @unique
+  lastPingAt DateTime
+  status     String
+  metadata   Json?
+}
