@@ -177,14 +177,6 @@ export default async function HomePage() {
               FAQ
             </a>
           </nav>
-
-          <Link
-            href="/admin"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-cyan-200 hover:bg-slate-50"
-          >
-            <ShieldCheck className="h-4 w-4 text-cyan-700" />
-            <span>Admin</span>
-          </Link>
         </div>
       </header>
 
@@ -197,7 +189,7 @@ export default async function HomePage() {
           <div className="flex flex-wrap items-end justify-between gap-2">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-                Event Voting Aktif
+                Event Aktif
               </h1>
               <p className="mt-1 text-sm text-slate-600">
                 Pilih event di bawah ini untuk membuka halaman voting dan
@@ -231,15 +223,8 @@ export default async function HomePage() {
               </h3>
               <p className="mx-auto mt-1.5 max-w-md text-sm text-slate-600">
                 Event baru akan tampil di halaman ini setelah diaktifkan oleh
-                panitia melalui panel Admin.
+                panitia.
               </p>
-              <Link
-                href="/admin"
-                className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#1C3458] to-[#0E7490] px-5 py-2.5 text-xs font-semibold text-white transition hover:from-[#152845] hover:to-[#0891B2]"
-              >
-                <span>Buka Panel Admin</span>
-                <ArrowRight className="h-4 w-4" />
-              </Link>
             </div>
           ) : events.length === 1 ? (
             <div className="mt-6">

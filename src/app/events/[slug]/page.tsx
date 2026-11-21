@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { OrderStatus } from "@prisma/client";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ShieldCheck } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { expireStaleOrders } from "@/lib/unique-code";
 import EventVotingClient, {
@@ -108,13 +108,6 @@ export default async function EventSlugPage({
               </span>
             </div>
           </div>
-          <Link
-            href="/admin"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-cyan-200 hover:bg-slate-50"
-          >
-            <ShieldCheck className="h-4 w-4 text-cyan-700" />
-            <span>Admin</span>
-          </Link>
         </div>
       </header>
 
