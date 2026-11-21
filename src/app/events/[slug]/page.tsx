@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { OrderStatus } from "@prisma/client";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ShieldCheck, Vote } from "lucide-react";
+import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { expireStaleOrders } from "@/lib/unique-code";
 import EventVotingClient, {
@@ -96,8 +96,12 @@ export default async function EventSlugPage({
               <span>Beranda</span>
             </Link>
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs">
-                <Vote className="h-4 w-4" />
+              <div className="h-8 w-8 overflow-hidden rounded-xl border border-slate-200/80 bg-[#1C3458] shadow-xs">
+                <img
+                  src="/images/logo-icon.png"
+                  alt="Logo Votingin"
+                  className="h-full w-full object-cover"
+                />
               </div>
               <span className="text-sm font-bold tracking-tight text-slate-900">
                 Votingin
@@ -106,9 +110,9 @@ export default async function EventSlugPage({
           </div>
           <Link
             href="/admin"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-indigo-200 hover:bg-slate-50"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-cyan-200 hover:bg-slate-50"
           >
-            <ShieldCheck className="h-4 w-4 text-indigo-600" />
+            <ShieldCheck className="h-4 w-4 text-cyan-700" />
             <span>Admin</span>
           </Link>
         </div>

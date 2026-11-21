@@ -9,7 +9,6 @@ import {
   HelpCircle,
   QrCode,
   ShieldCheck,
-  Vote,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatDateTimeId, formatRupiah } from "@/lib/format";
@@ -147,14 +146,17 @@ export default async function HomePage() {
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/85 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3.5 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs">
-              <Vote className="h-5 w-5" />
+            <div className="h-9 w-9 overflow-hidden rounded-xl border border-slate-200/80 bg-[#1C3458] shadow-xs">
+              <img
+                src="/images/logo-icon.png"
+                alt="Logo Votingin"
+                className="h-full w-full object-cover"
+              />
             </div>
             <div>
               <div className="text-sm font-bold tracking-tight text-slate-900">
                 Votingin
               </div>
-              <div className="text-[11px] text-slate-500">votingin.my.id</div>
             </div>
           </Link>
 
@@ -162,25 +164,25 @@ export default async function HomePage() {
             aria-label="Navigasi utama"
             className="hidden items-center gap-6 text-xs font-semibold text-slate-600 md:flex"
           >
-            <a href="#event" className="transition hover:text-indigo-600">
+            <a href="#event" className="transition hover:text-cyan-700">
               Event Aktif
             </a>
-            <a href="#profil" className="transition hover:text-indigo-600">
+            <a href="#profil" className="transition hover:text-cyan-700">
               Profil
             </a>
-            <a href="#cara-vote" className="transition hover:text-indigo-600">
+            <a href="#cara-vote" className="transition hover:text-cyan-700">
               Cara Vote
             </a>
-            <a href="#faq" className="transition hover:text-indigo-600">
+            <a href="#faq" className="transition hover:text-cyan-700">
               FAQ
             </a>
           </nav>
 
           <Link
             href="/admin"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-indigo-200 hover:bg-slate-50"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-cyan-200 hover:bg-slate-50"
           >
-            <ShieldCheck className="h-4 w-4 text-indigo-600" />
+            <ShieldCheck className="h-4 w-4 text-cyan-700" />
             <span>Admin</span>
           </Link>
         </div>
@@ -203,7 +205,7 @@ export default async function HomePage() {
               </p>
             </div>
             {!dbError && events.length > 0 && (
-              <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+              <span className="rounded-full bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-800">
                 {events.length} Event Tersedia
               </span>
             )}
@@ -221,7 +223,7 @@ export default async function HomePage() {
             </div>
           ) : events.length === 0 ? (
             <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xs sm:p-10">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-50 text-cyan-700">
                 <QrCode className="h-6 w-6" />
               </div>
               <h3 className="mt-4 text-lg font-bold text-slate-900">
@@ -233,7 +235,7 @@ export default async function HomePage() {
               </p>
               <Link
                 href="/admin"
-                className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
+                className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#1C3458] to-[#0E7490] px-5 py-2.5 text-xs font-semibold text-white transition hover:from-[#152845] hover:to-[#0891B2]"
               >
                 <span>Buka Panel Admin</span>
                 <ArrowRight className="h-4 w-4" />
@@ -247,7 +249,7 @@ export default async function HomePage() {
                 return (
                   <Link
                     href={`/events/${ev.slug}`}
-                    className="group flex flex-col justify-between gap-6 rounded-3xl border border-slate-200/90 bg-white p-6 shadow-xs transition hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md sm:p-8 lg:flex-row lg:items-center"
+                    className="group flex flex-col justify-between gap-6 rounded-3xl border border-slate-200/90 bg-white p-6 shadow-xs transition hover:-translate-y-0.5 hover:border-cyan-300 hover:shadow-md sm:p-8 lg:flex-row lg:items-center"
                   >
                     <div className="max-w-2xl">
                       <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -262,12 +264,12 @@ export default async function HomePage() {
                         <span className="rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700">
                           {ev._count.candidates} Kandidat
                         </span>
-                        <span className="rounded-full bg-indigo-50 px-3 py-1 font-bold text-indigo-700">
+                        <span className="rounded-full bg-cyan-50 px-3 py-1 font-bold text-cyan-800">
                           {formatRupiah(ev.pricePerVote)} / vote
                         </span>
                       </div>
 
-                      <h3 className="mt-4 text-xl font-bold text-slate-900 transition group-hover:text-indigo-700 sm:text-2xl">
+                      <h3 className="mt-4 text-xl font-bold text-slate-900 transition group-hover:text-cyan-800 sm:text-2xl">
                         {ev.title}
                       </h3>
 
@@ -286,7 +288,7 @@ export default async function HomePage() {
                     </div>
 
                     <div className="shrink-0">
-                      <span className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-6 py-3.5 text-sm font-semibold text-white shadow-xs transition group-hover:bg-indigo-700 lg:w-auto">
+                      <span className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#1C3458] to-[#0E7490] px-6 py-3.5 text-sm font-semibold text-white shadow-xs transition group-hover:from-[#152845] group-hover:to-[#0891B2] lg:w-auto">
                         <span>Buka Halaman Voting</span>
                         <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
                       </span>
@@ -303,7 +305,7 @@ export default async function HomePage() {
                   <Link
                     key={ev.id}
                     href={`/events/${ev.slug}`}
-                    className="group flex flex-col rounded-3xl border border-slate-200/90 bg-white p-6 shadow-xs transition hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md"
+                    className="group flex flex-col rounded-3xl border border-slate-200/90 bg-white p-6 shadow-xs transition hover:-translate-y-0.5 hover:border-cyan-300 hover:shadow-md"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                       <span
@@ -314,12 +316,12 @@ export default async function HomePage() {
                         />
                         {status.label}
                       </span>
-                      <span className="font-bold text-indigo-600">
+                      <span className="font-bold text-cyan-700">
                         {formatRupiah(ev.pricePerVote)} / vote
                       </span>
                     </div>
 
-                    <h3 className="mt-4 text-lg font-bold text-slate-900 transition group-hover:text-indigo-700">
+                    <h3 className="mt-4 text-lg font-bold text-slate-900 transition group-hover:text-cyan-800">
                       {ev.title}
                     </h3>
 
@@ -339,7 +341,7 @@ export default async function HomePage() {
                           {ev._count.candidates} Kandidat
                         </span>
                       </div>
-                      <div className="mt-4 inline-flex items-center gap-1.5 font-semibold text-indigo-600">
+                      <div className="mt-4 inline-flex items-center gap-1.5 font-semibold text-cyan-700">
                         <span>Buka Halaman Voting</span>
                         <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
                       </div>
@@ -357,19 +359,30 @@ export default async function HomePage() {
           className="mx-auto max-w-6xl scroll-mt-20 px-4 pt-14 sm:px-6 lg:px-8"
         >
           <div className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xs sm:p-10">
-            <div className="max-w-2xl">
-              <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">
-                Tentang Votingin
-              </span>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-                Platform Voting Online untuk Berbagai Ajang & Komunitas
-              </h2>
-              <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
-                Votingin (votingin.my.id) dirancang untuk penyelenggaraan voting
-                pada ajang duta, lomba bakat, pemilihan organisasi, maupun acara
-                komunitas. Tampilannya ringan dan nyaman digunakan dari ponsel
-                maupun komputer.
-              </p>
+            <div className="grid items-center gap-6 lg:grid-cols-12">
+              <div className="lg:col-span-7">
+                <span className="text-xs font-bold uppercase tracking-wider text-cyan-700">
+                  Tentang Votingin
+                </span>
+                <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                  Solusi Voting Online Praktis untuk Segala Jenis Acara
+                </h2>
+                <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
+                  Votingin mempermudah proses pemungutan suara untuk pemilihan
+                  duta, ajang pencarian bakat, pemilu organisasi, hingga acara
+                  komunitas. Dirancang ringan dan responsif agar tetap nyaman
+                  diakses lewat ponsel maupun komputer.
+                </p>
+              </div>
+              <div className="lg:col-span-5">
+                <div className="mx-auto aspect-square w-full max-w-[260px] overflow-hidden rounded-2xl border border-slate-200/80 bg-[#1C3458] shadow-sm">
+                  <img
+                    src="/images/logo.jpg"
+                    alt="Logo Votingin"
+                    className="h-full w-full object-contain"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -380,7 +393,7 @@ export default async function HomePage() {
                     key={feat.title}
                     className="rounded-2xl border border-slate-100 bg-slate-50/80 p-5"
                   >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-100 text-cyan-700">
                       <Icon className="h-5 w-5" />
                     </div>
                     <h3 className="mt-3.5 text-sm font-bold text-slate-900">
@@ -402,7 +415,7 @@ export default async function HomePage() {
           className="mx-auto max-w-6xl scroll-mt-20 px-4 pt-14 sm:px-6 lg:px-8"
         >
           <div className="max-w-2xl">
-            <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">
+            <span className="text-xs font-bold uppercase tracking-wider text-cyan-700">
               Panduan Singkat
             </span>
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
@@ -419,7 +432,7 @@ export default async function HomePage() {
                 key={item.step}
                 className="flex flex-col rounded-3xl border border-slate-200/90 bg-white p-5 shadow-xs"
               >
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 font-mono text-xs font-bold text-white">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#1C3458] font-mono text-xs font-bold text-white">
                   {item.step}
                 </span>
                 <h3 className="mt-4 text-base font-bold text-slate-900">
@@ -439,7 +452,7 @@ export default async function HomePage() {
           className="mx-auto max-w-6xl scroll-mt-20 px-4 py-14 sm:px-6 lg:px-8"
         >
           <div className="flex items-center gap-2">
-            <HelpCircle className="h-5 w-5 text-indigo-600" />
+            <HelpCircle className="h-5 w-5 text-cyan-700" />
             <h2 className="text-2xl font-bold tracking-tight text-slate-900">
               Pertanyaan Umum
             </h2>
@@ -466,33 +479,8 @@ export default async function HomePage() {
 
       {/* Footer */}
       <footer className="border-t border-slate-200/80 bg-white">
-        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-4 px-4 py-7 sm:flex-row sm:items-center sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-600 text-white">
-              <Vote className="h-4 w-4" />
-            </div>
-            <div>
-              <div className="text-sm font-bold text-slate-900">Votingin</div>
-              <div className="text-xs text-slate-500">
-                © 2026 Votingin • votingin.my.id
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-5 text-xs font-semibold text-slate-600">
-            <a href="#event" className="hover:text-indigo-600">
-              Event Aktif
-            </a>
-            <a href="#profil" className="hover:text-indigo-600">
-              Profil
-            </a>
-            <a href="#cara-vote" className="hover:text-indigo-600">
-              Cara Vote
-            </a>
-            <Link href="/admin" className="hover:text-indigo-600">
-              Admin
-            </Link>
-          </div>
+        <div className="mx-auto max-w-6xl px-4 py-6 text-center text-xs text-slate-500 sm:px-6 lg:px-8">
+          © 2026 Votingin
         </div>
       </footer>
     </div>

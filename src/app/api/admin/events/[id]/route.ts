@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { validateQrisPayload } from "@/lib/qris";
-import { saveUploadedImage } from "@/lib/storage";
+import { deleteUploadedFile, saveUploadedImage } from "@/lib/storage";
 import { MIN_PRICE_PER_VOTE } from "@/lib/unique-code";
 
 export const dynamic = "force-dynamic";
@@ -207,6 +207,73 @@ export async function PATCH(
     console.error("PATCH /api/admin/events/[id] error:", err);
     return NextResponse.json(
       { error: "Gagal memperbarui pengaturan event." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  _req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  if (!(await isAdminAuthenticated())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await context.params;
+  const existing = await prisma.event.findUnique({
+    where: { id },
+    include: {
+      candidates: { select: { photoPath: true, totalVotes: true } },
+      orders: { select: { proofs: { select: { imagePath: true } } } },
+      _count: { select: { candidates: true, orders: true } },
+    },
+  });
+
+  if (!existing) {
+    return NextResponse.json(
+      { error: "Event tidak ditemukan." },
+      { status: 404 }
+    );
+  }
+
+  const totalVotes = existing.candidates.reduce(
+    (sum, c) => sum + c.totalVotes,
+    0
+  );
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.event.delete({ where: { id } });
+
+      await tx.auditLog.create({
+        data: {
+          actor: "admin",
+          action: "DELETE_EVENT",
+          targetId: id,
+          metadata: {
+            title: existing.title,
+            slug: existing.slug,
+            candidatesCount: existing._count.candidates,
+            ordersCount: existing._count.orders,
+            totalVotes,
+          },
+        },
+      });
+    });
+
+    const paths: Array<string | null | undefined> = [
+      existing.qrisImagePath,
+      ...existing.candidates.map((c) => c.photoPath),
+      ...existing.orders.flatMap((o) => o.proofs.map((p) => p.imagePath)),
+    ];
+    await Promise.allSettled(paths.map((p) => deleteUploadedFile(p)));
+
+    return NextResponse.json({ ok: true, deletedId: id });
+  } catch (err) {
+    console.error("DELETE /api/admin/events/[id] error:", err);
+    return NextResponse.json(
+      { error: "Gagal menghapus event." },
       { status: 500 }
     );
   }

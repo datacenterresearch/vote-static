@@ -85,3 +85,21 @@ export async function saveUploadedImage(
     imageHash,
   };
 }
+
+export async function deleteUploadedFile(
+  relativePath: string | null | undefined
+): Promise<void> {
+  if (!relativePath) return;
+
+  const segments = relativePath.split(/[\\/]+/).filter(Boolean);
+  const fullPath = resolveSafeUploadPath(segments);
+  if (!fullPath) return;
+
+  try {
+    await fs.unlink(fullPath);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code !== "ENOENT") {
+      console.error("Failed to delete uploaded file:", fullPath, err);
+    }
+  }
+}

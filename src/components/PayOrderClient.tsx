@@ -246,7 +246,7 @@ export default function PayOrderClient({
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Link
               href={`/events/${order.event.slug}`}
-              className="rounded-2xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-indigo-700"
+              className="rounded-2xl bg-gradient-to-r from-[#1C3458] to-[#0E7490] px-5 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:from-[#152845] hover:to-[#0891B2]"
             >
               Lihat Hasil Sementara
             </Link>
@@ -281,7 +281,7 @@ export default function PayOrderClient({
               <div className="mt-3">
                 <Link
                   href={`/events/${order.event.slug}`}
-                  className="inline-flex items-center rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+                  className="inline-flex items-center rounded-xl bg-[#1C3458] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#152845]"
                 >
                   Buat Pesanan Baru
                 </Link>
@@ -294,7 +294,7 @@ export default function PayOrderClient({
       {/* Main Payment Card when PENDING */}
       {order.status === "PENDING" && (
         <div className="overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-900 px-5 py-3.5 text-white sm:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-[#1C3458] px-5 py-3.5 text-white sm:px-6">
             <div className="flex items-center gap-2 text-xs font-semibold">
               <RefreshCw className="h-3.5 w-3.5 animate-spin text-emerald-400" />
               <span>Menunggu Pembayaran</span>
@@ -312,8 +312,8 @@ export default function PayOrderClient({
           </div>
 
           <div className="p-5 sm:p-8">
-            <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/90 to-sky-50/70 p-4 text-center sm:p-5">
-              <div className="text-xs font-bold uppercase tracking-wider text-indigo-700">
+            <div className="rounded-2xl border border-cyan-100 bg-gradient-to-br from-cyan-50/90 to-teal-50/70 p-4 text-center sm:p-5">
+              <div className="text-xs font-bold uppercase tracking-wider text-cyan-800">
                 Total Transfer (Tepat 3 Digit Akhir)
               </div>
               <div className="mt-2.5 flex flex-wrap items-center justify-center gap-3">
@@ -326,7 +326,7 @@ export default function PayOrderClient({
                 <button
                   type="button"
                   onClick={handleCopyAmount}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-white px-3.5 py-2 text-xs font-semibold text-indigo-700 shadow-2xs transition hover:bg-indigo-50"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-200 bg-white px-3.5 py-2 text-xs font-semibold text-cyan-800 shadow-2xs transition hover:bg-cyan-50"
                 >
                   {copied ? (
                     <>
@@ -373,7 +373,7 @@ export default function PayOrderClient({
                 <button
                   type="button"
                   onClick={() => setUseStaticFallback((prev) => !prev)}
-                  className="mt-3 text-xs font-semibold text-indigo-600 underline-offset-2 hover:underline"
+                  className="mt-3 text-xs font-semibold text-cyan-700 underline-offset-2 hover:underline"
                 >
                   {useStaticFallback
                     ? "Gunakan QRIS Nominal Otomatis"
@@ -436,7 +436,7 @@ export default function PayOrderClient({
       {order.status !== "PAID" && order.status !== "CANCELLED" && (
         <div className="mt-6 rounded-3xl border border-slate-200/90 bg-white p-5 shadow-xs sm:p-6">
           <div className="flex items-center gap-2">
-            <FileUp className="h-5 w-5 text-indigo-600" />
+            <FileUp className="h-5 w-5 text-cyan-700" />
             <h2 className="text-base font-bold text-slate-900">
               Unggah Bukti Pembayaran
             </h2>
@@ -482,7 +482,7 @@ export default function PayOrderClient({
                 accept="image/png,image/jpeg,image/webp"
                 required
                 onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
-                className="mt-1.5 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-indigo-700"
+                className="mt-1.5 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-cyan-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-cyan-800"
               />
             </div>
 
@@ -495,7 +495,7 @@ export default function PayOrderClient({
                 placeholder="Masukkan nomor referensi transfer"
                 value={rrnInput}
                 onChange={(e) => setRrnInput(e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                className="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2 text-xs focus:border-cyan-600 focus:outline-none"
               />
             </div>
 
@@ -514,7 +514,7 @@ export default function PayOrderClient({
             <button
               type="submit"
               disabled={uploadingProof || !proofFile}
-              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:bg-slate-300"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#1C3458] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#152845] disabled:bg-slate-300"
             >
               <FileUp className="h-4 w-4" />
               <span>

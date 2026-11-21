@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
   Activity,
+  AlertTriangle,
   CheckCircle2,
   Eye,
   EyeOff,
@@ -12,9 +13,9 @@ import {
   FlaskConical,
   LogOut,
   Plus,
+  Printer,
   RefreshCw,
   Settings,
-  ShieldCheck,
   Trash2,
   X,
   XCircle,
@@ -185,6 +186,16 @@ export default function AdminDashboardClient() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
+  // Delete Event modal state
+  const [deletingEvent, setDeletingEvent] = useState<EventItem | null>(null);
+  const [deleteConfirmSlug, setDeleteConfirmSlug] = useState("");
+  const [deletingBusy, setDeletingBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Print Document selector modal state
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printEventId, setPrintEventId] = useState("");
+
   // Create Candidate form state
   const [candEventId, setCandEventId] = useState("");
   const [candNumber, setCandNumber] = useState(1);
@@ -220,6 +231,11 @@ export default function AdminDashboardClient() {
         if (!candEventId && json.events[0]) {
           setCandEventId(json.events[0].id);
         }
+        setPrintEventId((prev) =>
+          prev && json.events.some((ev) => ev.id === prev)
+            ? prev
+            : json.events[0]?.id ?? ""
+        );
       }
     } finally {
       setLoading(false);
@@ -229,6 +245,65 @@ export default function AdminDashboardClient() {
   useEffect(() => {
     loadOverview();
   }, [loadOverview]);
+
+  function openDeleteEventModal(ev: EventItem) {
+    setDeletingEvent(ev);
+    setDeleteConfirmSlug("");
+    setDeleteError(null);
+  }
+
+  async function handleDeleteEvent(e: React.FormEvent) {
+    e.preventDefault();
+    if (!deletingEvent) return;
+
+    const deletedId = deletingEvent.id;
+    const deletedTitle = deletingEvent.title;
+    setDeletingBusy(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/admin/events/${deletedId}`, {
+        method: "DELETE",
+      });
+      const json = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setDeleteError(json.error ?? "Gagal menghapus event.");
+        return;
+      }
+
+      setDeletingEvent(null);
+      if (editingEvent?.id === deletedId) setEditingEvent(null);
+      if (candEventId === deletedId) setCandEventId("");
+      if (simEventId === deletedId) setSimEventId("");
+      if (printEventId === deletedId) setPrintEventId("");
+
+      notify("ok", `Event "${deletedTitle}" berhasil dihapus.`);
+      await loadOverview();
+    } catch {
+      setDeleteError("Gangguan jaringan saat menghapus event.");
+    } finally {
+      setDeletingBusy(false);
+    }
+  }
+
+  function openPrintModal() {
+    if (!data) return;
+    const stillValid = data.events.some((ev) => ev.id === printEventId);
+    if (!stillValid) {
+      setPrintEventId(data.events[0]?.id ?? "");
+    }
+    setShowPrintModal(true);
+  }
+
+  function handleOpenPrintDocument(e: React.FormEvent) {
+    e.preventDefault();
+    if (!printEventId) return;
+    window.open(
+      `/admin/events/${printEventId}/print`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+    setShowPrintModal(false);
+  }
 
   function openEventSettings(ev: EventItem) {
     setEditingEvent(ev);
@@ -482,8 +557,12 @@ export default function AdminDashboardClient() {
       <header className="sticky top-0 z-30 border-b border-slate-200/90 bg-white/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3.5 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs">
-              <ShieldCheck className="h-5 w-5" />
+            <div className="h-9 w-9 shrink-0 overflow-hidden rounded-xl border border-slate-200/80 bg-[#1C3458] shadow-xs">
+              <img
+                src="/images/logo-icon.png"
+                alt="Logo Votingin"
+                className="h-full w-full object-cover"
+              />
             </div>
             <div>
               <h1 className="text-base font-bold text-slate-900">
@@ -496,6 +575,15 @@ export default function AdminDashboardClient() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={openPrintModal}
+              disabled={data.events.length === 0}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-semibold text-cyan-800 transition hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              <span>Cetak Dokumen</span>
+            </button>
             <Link
               href="/"
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
@@ -513,7 +601,7 @@ export default function AdminDashboardClient() {
             <button
               type="button"
               onClick={handleLogout}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#1C3458] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#152845]"
             >
               <LogOut className="h-3.5 w-3.5" />
               <span>Keluar</span>
@@ -543,7 +631,7 @@ export default function AdminDashboardClient() {
               onClick={() => setTab(key)}
               className={`shrink-0 rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
                 tab === key
-                  ? "bg-indigo-600 text-white shadow-xs"
+                  ? "bg-gradient-to-r from-[#1C3458] to-[#0E7490] text-white shadow-xs"
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
               }`}
             >
@@ -585,7 +673,7 @@ export default function AdminDashboardClient() {
             <div className="text-xs font-medium text-slate-500">
               Total Suara Sah
             </div>
-            <div className="mt-1 text-2xl font-bold text-indigo-700">
+            <div className="mt-1 text-2xl font-bold text-[#1C3458]">
               {new Intl.NumberFormat("id-ID").format(
                 data.summary.totalVotesRecorded
               )}
@@ -726,7 +814,7 @@ export default function AdminDashboardClient() {
                               setSimEventId(o.eventId);
                               setTab("simulator");
                             }}
-                            className="text-xs font-semibold text-indigo-600 hover:underline"
+                            className="text-xs font-semibold text-cyan-700 hover:underline"
                           >
                             Simulasi Bayar
                           </button>
@@ -758,7 +846,7 @@ export default function AdminDashboardClient() {
               className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6"
             >
               <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
-                <Plus className="h-4 w-4 text-indigo-600" />
+                <Plus className="h-4 w-4 text-cyan-700" />
                 <span>Buat Event Baru</span>
               </div>
 
@@ -773,7 +861,7 @@ export default function AdminDashboardClient() {
                     value={evTitle}
                     onChange={(e) => setEvTitle(e.target.value)}
                     placeholder="Pemilihan Duta Kampus"
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-cyan-600 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -786,7 +874,7 @@ export default function AdminDashboardClient() {
                     value={evSlug}
                     onChange={(e) => setEvSlug(e.target.value)}
                     placeholder="duta-kampus-2026"
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-cyan-600 focus:outline-none"
                   />
                 </div>
               </div>
@@ -799,7 +887,7 @@ export default function AdminDashboardClient() {
                   rows={2}
                   value={evDesc}
                   onChange={(e) => setEvDesc(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-cyan-600 focus:outline-none"
                 />
               </div>
 
@@ -814,7 +902,7 @@ export default function AdminDashboardClient() {
                     required
                     value={evPrice}
                     onChange={(e) => setEvPrice(Number(e.target.value))}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-cyan-600 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -827,7 +915,7 @@ export default function AdminDashboardClient() {
                     required
                     value={evCutoff}
                     onChange={(e) => setEvCutoff(Number(e.target.value))}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-cyan-600 focus:outline-none"
                   />
                 </div>
               </div>
@@ -842,7 +930,7 @@ export default function AdminDashboardClient() {
                     required
                     value={evStarts}
                     onChange={(e) => setEvStarts(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-cyan-600 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -854,7 +942,7 @@ export default function AdminDashboardClient() {
                     required
                     value={evEnds}
                     onChange={(e) => setEvEnds(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-cyan-600 focus:outline-none"
                   />
                 </div>
               </div>
@@ -880,7 +968,7 @@ export default function AdminDashboardClient() {
                   value={evQrisRaw}
                   onChange={(e) => setEvQrisRaw(e.target.value)}
                   placeholder="000201010211..."
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-[11px] focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-[11px] focus:border-cyan-600 focus:outline-none"
                 />
               </div>
 
@@ -897,7 +985,7 @@ export default function AdminDashboardClient() {
 
               <button
                 type="submit"
-                className="w-full rounded-xl bg-indigo-600 py-2.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
+                className="w-full rounded-xl bg-gradient-to-r from-[#1C3458] to-[#0E7490] py-2.5 text-xs font-semibold text-white transition hover:from-[#152845] hover:to-[#0891B2]"
               >
                 Simpan Event
               </button>
@@ -909,7 +997,7 @@ export default function AdminDashboardClient() {
               className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6"
             >
               <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
-                <Plus className="h-4 w-4 text-indigo-600" />
+                <Plus className="h-4 w-4 text-cyan-700" />
                 <span>Tambah Kandidat</span>
               </div>
 
@@ -921,7 +1009,7 @@ export default function AdminDashboardClient() {
                   required
                   value={candEventId}
                   onChange={(e) => setCandEventId(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-cyan-600 focus:outline-none"
                 >
                   <option value="">-- Pilih Event --</option>
                   {data.events.map((ev) => (
@@ -943,7 +1031,7 @@ export default function AdminDashboardClient() {
                     required
                     value={candNumber}
                     onChange={(e) => setCandNumber(Number(e.target.value))}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-cyan-600 focus:outline-none"
                   />
                 </div>
                 <div className="sm:col-span-2">
@@ -956,7 +1044,7 @@ export default function AdminDashboardClient() {
                     value={candName}
                     onChange={(e) => setCandName(e.target.value)}
                     placeholder="Nama Lengkap Kandidat"
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-cyan-600 focus:outline-none"
                   />
                 </div>
               </div>
@@ -969,7 +1057,7 @@ export default function AdminDashboardClient() {
                   rows={2}
                   value={candDesc}
                   onChange={(e) => setCandDesc(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-cyan-600 focus:outline-none"
                 />
               </div>
 
@@ -988,7 +1076,7 @@ export default function AdminDashboardClient() {
               <button
                 type="submit"
                 disabled={!candEventId}
-                className="w-full rounded-xl bg-slate-900 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:bg-slate-300"
+                className="w-full rounded-xl bg-[#1C3458] py-2.5 text-xs font-semibold text-white transition hover:bg-[#152845] disabled:bg-slate-300"
               >
                 Tambah Kandidat
               </button>
@@ -1009,7 +1097,7 @@ export default function AdminDashboardClient() {
                         </h3>
                         <Link
                           href={`/events/${ev.slug}`}
-                          className="text-xs font-semibold text-indigo-600 hover:underline"
+                          className="text-xs font-semibold text-cyan-700 hover:underline"
                         >
                           /events/{ev.slug}
                         </Link>
@@ -1021,10 +1109,19 @@ export default function AdminDashboardClient() {
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                      <Link
+                        href={`/admin/events/${ev.id}/print`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                      >
+                        <Printer className="h-3.5 w-3.5" />
+                        <span>Cetak</span>
+                      </Link>
                       <button
                         type="button"
                         onClick={() => openEventSettings(ev)}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-800 transition hover:bg-cyan-100"
                       >
                         <Settings className="h-3.5 w-3.5" />
                         <span>Pengaturan</span>
@@ -1053,6 +1150,14 @@ export default function AdminDashboardClient() {
                         }`}
                       >
                         {ev.isActive ? "Aktif" : "Nonaktif"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openDeleteEventModal(ev)}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Hapus</span>
                       </button>
                     </div>
                   </div>
@@ -1094,7 +1199,7 @@ export default function AdminDashboardClient() {
             {/* Pending Manual Proofs */}
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
               <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
-                <FileCheck2 className="h-4 w-4 text-indigo-600" />
+                <FileCheck2 className="h-4 w-4 text-cyan-700" />
                 <span>
                   Antrean Bukti Pembayaran Manual ({pendingProofs.length})
                 </span>
@@ -1124,7 +1229,7 @@ export default function AdminDashboardClient() {
                         href={p.imageUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="shrink-0 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold text-indigo-600 hover:bg-slate-200"
+                        className="shrink-0 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold text-cyan-700 hover:bg-slate-200"
                       >
                         Lihat Gambar
                       </a>
@@ -1205,7 +1310,7 @@ export default function AdminDashboardClient() {
                 </div>
                 <button
                   type="submit"
-                  className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700"
+                  className="rounded-xl bg-gradient-to-r from-[#1C3458] to-[#0E7490] px-4 py-2 text-xs font-semibold text-white transition hover:from-[#152845] hover:to-[#0891B2]"
                 >
                   Tautkan & Selesaikan Order
                 </button>
@@ -1218,7 +1323,7 @@ export default function AdminDashboardClient() {
         {tab === "simulator" && (
           <section className="mt-6 max-w-xl rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6">
             <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
-              <FlaskConical className="h-4 w-4 text-indigo-600" />
+              <FlaskConical className="h-4 w-4 text-cyan-700" />
               <span>Simulator Mutasi Masuk</span>
             </div>
             <p className="mt-1 text-xs text-slate-600">
@@ -1287,7 +1392,7 @@ export default function AdminDashboardClient() {
 
               <button
                 type="submit"
-                className="w-full rounded-xl bg-indigo-600 py-2.5 text-xs font-semibold text-white hover:bg-indigo-700"
+                className="w-full rounded-xl bg-gradient-to-r from-[#1C3458] to-[#0E7490] py-2.5 text-xs font-semibold text-white transition hover:from-[#152845] hover:to-[#0891B2]"
               >
                 Kirim Simulasi Mutasi
               </button>
@@ -1321,7 +1426,7 @@ export default function AdminDashboardClient() {
                       <td className="py-2 pr-3 font-semibold text-slate-800">
                         {log.actor}
                       </td>
-                      <td className="py-2 pr-3 font-mono text-indigo-700">
+                      <td className="py-2 pr-3 font-mono text-cyan-800">
                         {log.action}
                       </td>
                       <td className="py-2 pr-3 font-mono text-slate-500">
@@ -1345,7 +1450,7 @@ export default function AdminDashboardClient() {
           <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:max-w-xl sm:rounded-3xl sm:p-6">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">
+                <span className="text-xs font-bold uppercase tracking-wider text-cyan-700">
                   Pengaturan Event
                 </span>
                 <h2 className="mt-0.5 text-lg font-bold text-slate-900">
@@ -1373,7 +1478,7 @@ export default function AdminDashboardClient() {
                     required
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-cyan-600 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -1385,7 +1490,7 @@ export default function AdminDashboardClient() {
                     required
                     value={editSlug}
                     onChange={(e) => setEditSlug(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-cyan-600 focus:outline-none"
                   />
                 </div>
               </div>
@@ -1398,7 +1503,7 @@ export default function AdminDashboardClient() {
                   rows={2}
                   value={editDesc}
                   onChange={(e) => setEditDesc(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-cyan-600 focus:outline-none"
                 />
               </div>
 
@@ -1413,7 +1518,7 @@ export default function AdminDashboardClient() {
                     required
                     value={editPrice}
                     onChange={(e) => setEditPrice(Number(e.target.value))}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-cyan-600 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -1426,7 +1531,7 @@ export default function AdminDashboardClient() {
                     required
                     value={editCutoff}
                     onChange={(e) => setEditCutoff(Number(e.target.value))}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-cyan-600 focus:outline-none"
                   />
                 </div>
               </div>
@@ -1441,7 +1546,7 @@ export default function AdminDashboardClient() {
                     required
                     value={editStarts}
                     onChange={(e) => setEditStarts(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-cyan-600 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -1453,7 +1558,7 @@ export default function AdminDashboardClient() {
                     required
                     value={editEnds}
                     onChange={(e) => setEditEnds(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:border-cyan-600 focus:outline-none"
                   />
                 </div>
               </div>
@@ -1492,7 +1597,7 @@ export default function AdminDashboardClient() {
                   value={editQrisRaw}
                   onChange={(e) => setEditQrisRaw(e.target.value)}
                   placeholder="Kosongkan jika tidak menggunakan QR otomatis"
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-[11px] focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-[11px] focus:border-cyan-600 focus:outline-none"
                 />
               </div>
 
@@ -1532,7 +1637,7 @@ export default function AdminDashboardClient() {
                 <button
                   type="submit"
                   disabled={savingSettings}
-                  className="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:bg-indigo-400"
+                  className="rounded-xl bg-gradient-to-r from-[#1C3458] to-[#0E7490] px-5 py-2.5 text-xs font-semibold text-white transition hover:from-[#152845] hover:to-[#0891B2] disabled:opacity-60"
                 >
                   {savingSettings ? "Menyimpan..." : "Simpan Pengaturan"}
                 </button>
@@ -1541,6 +1646,225 @@ export default function AdminDashboardClient() {
           </div>
         </div>
       )}
+
+      {/* Delete Event Confirmation Modal */}
+      {deletingEvent && (() => {
+        const totalVotes = deletingEvent.candidates.reduce(
+          (sum, c) => sum + c.totalVotes,
+          0
+        );
+        const requiresSlugConfirm = totalVotes > 0;
+        const canSubmitDelete =
+          !deletingBusy &&
+          (!requiresSlugConfirm ||
+            deleteConfirmSlug.trim() === deletingEvent.slug);
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 p-0 backdrop-blur-xs sm:items-center sm:p-4">
+            <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:max-w-lg sm:rounded-3xl sm:p-6">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-rose-100 text-rose-600">
+                    <AlertTriangle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-rose-600">
+                      Hapus Event Permanen
+                    </span>
+                    <h2 className="mt-0.5 text-lg font-bold text-slate-900">
+                      {deletingEvent.title}
+                    </h2>
+                    <p className="font-mono text-xs text-slate-500">
+                      /events/{deletingEvent.slug}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDeletingEvent(null)}
+                  disabled={deletingBusy}
+                  className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                  aria-label="Tutup konfirmasi hapus"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleDeleteEvent} className="mt-5 space-y-4">
+                <div className="rounded-2xl border border-rose-200 bg-rose-50/70 p-4 text-xs text-rose-900">
+                  <p className="font-semibold">
+                    Tindakan ini tidak dapat dibatalkan.
+                  </p>
+                  <p className="mt-1 leading-relaxed text-rose-800">
+                    Seluruh data kandidat ({deletingEvent.candidates.length}{" "}
+                    kandidat), pesanan vote, catatan suara sah ({totalVotes}{" "}
+                    suara), dan bukti pembayaran manual milik event ini akan
+                    dihapus permanen.
+                  </p>
+                </div>
+
+                {requiresSlugConfirm && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Event ini sudah memiliki{" "}
+                      <span className="font-bold text-rose-700">
+                        {totalVotes} suara sah
+                      </span>
+                      . Ketik slug{" "}
+                      <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-slate-900">
+                        {deletingEvent.slug}
+                      </span>{" "}
+                      untuk konfirmasi:
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={deleteConfirmSlug}
+                      onChange={(e) => setDeleteConfirmSlug(e.target.value)}
+                      placeholder={deletingEvent.slug}
+                      className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-xs focus:border-rose-500 focus:outline-none"
+                    />
+                  </div>
+                )}
+
+                {deleteError && (
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-medium text-rose-700">
+                    {deleteError}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    disabled={deletingBusy}
+                    onClick={() => setDeletingEvent(null)}
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!canSubmitDelete}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-rose-300"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>
+                      {deletingBusy ? "Menghapus..." : "Hapus Permanen"}
+                    </span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Print Document Event Selector Modal */}
+      {showPrintModal && (() => {
+        const selectedPrintEvent =
+          data.events.find((ev) => ev.id === printEventId) ?? null;
+        const selectedTotalVotes = selectedPrintEvent
+          ? selectedPrintEvent.candidates.reduce(
+              (sum, c) => sum + c.totalVotes,
+              0
+            )
+          : 0;
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 p-0 backdrop-blur-xs sm:items-center sm:p-4">
+            <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:max-w-lg sm:rounded-3xl sm:p-6">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-cyan-700">
+                    Cetak Dokumen Event
+                  </span>
+                  <h2 className="mt-0.5 text-lg font-bold text-slate-900">
+                    Pilih Event untuk Dicetak
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPrintModal(false)}
+                  className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                  aria-label="Tutup pilihan cetak"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleOpenPrintDocument} className="mt-5 space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Event
+                  </label>
+                  <select
+                    required
+                    value={printEventId}
+                    onChange={(e) => setPrintEventId(e.target.value)}
+                    className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-xs font-medium text-slate-800 focus:border-cyan-600 focus:outline-none"
+                  >
+                    {data.events.map((ev) => {
+                      const votes = ev.candidates.reduce(
+                        (s, c) => s + c.totalVotes,
+                        0
+                      );
+                      return (
+                        <option key={ev.id} value={ev.id}>
+                          {ev.title} ({ev.slug}) —{" "}
+                          {ev.isActive ? "Aktif" : "Nonaktif"} • {votes} suara
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                {selectedPrintEvent && (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs">
+                    <div className="font-bold text-slate-900">
+                      {selectedPrintEvent.title}
+                    </div>
+                    <div className="mt-1 space-y-1 text-slate-600">
+                      <div>
+                        Periode: {formatDateTimeId(selectedPrintEvent.startsAt)}{" "}
+                        – {formatDateTimeId(selectedPrintEvent.endsAt)}
+                      </div>
+                      <div>
+                        Kandidat: {selectedPrintEvent.candidates.length} • Total
+                        Suara Sah:{" "}
+                        <span className="font-semibold text-slate-900">
+                          {selectedTotalVotes}
+                        </span>
+                      </div>
+                      <div>
+                        Harga per Vote:{" "}
+                        {formatRupiah(selectedPrintEvent.pricePerVote)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowPrintModal(false)}
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!printEventId}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#1C3458] to-[#0E7490] px-5 py-2.5 text-xs font-semibold text-white transition hover:from-[#152845] hover:to-[#0891B2] disabled:opacity-50"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    <span>Buka &amp; Cetak Dokumen</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

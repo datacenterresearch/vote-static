@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowLeft, Lock, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Lock } from "lucide-react";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -47,8 +47,12 @@ export default function AdminLoginPage() {
         </Link>
 
         <div className="mt-6 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-xs">
-            <ShieldCheck className="h-6 w-6" />
+          <div className="h-11 w-11 shrink-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-[#1C3458] shadow-xs">
+            <img
+              src="/images/logo-icon.png"
+              alt="Logo Votingin"
+              className="h-full w-full object-cover"
+            />
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900">Login Admin</h1>
@@ -71,7 +75,7 @@ export default function AdminLoginPage() {
                 placeholder="Masukkan password admin"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 py-2.5 pl-10 pr-4 text-sm focus:border-indigo-500 focus:outline-none"
+                className="w-full rounded-xl border border-slate-300 py-2.5 pl-10 pr-4 text-sm focus:border-cyan-600 focus:outline-none"
               />
             </div>
           </div>
@@ -85,7 +89,7 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-2xl bg-indigo-600 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-indigo-700 disabled:bg-indigo-400"
+            className="w-full rounded-2xl bg-gradient-to-r from-[#1C3458] to-[#0E7490] py-2.5 text-sm font-semibold text-white shadow-xs transition hover:from-[#152845] hover:to-[#0891B2] disabled:opacity-60"
           >
             {loading ? "Memverifikasi..." : "Masuk"}
           </button>
