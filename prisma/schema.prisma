@@ -76,7 +76,7 @@ model VoteOrder {
   sessionKey     String
   voteQty      Int
   baseAmount   Int
-  uniqueCode   Int
+  uniqueCode   Int               @default(0)
   totalAmount  Int
   status       OrderStatus       @default(PENDING)
   expiresAt    DateTime
@@ -89,7 +89,6 @@ model VoteOrder {
   mutations    PaymentMutation[]
 
   @@index([eventId, status])
-  @@index([eventId, uniqueCode, expiresAt])
   @@index([sessionKey, eventId, status])
 }
 

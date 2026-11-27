@@ -746,7 +746,8 @@ export default function EventVotingClient({
                   </span>
                 </div>
                 <p className="mt-1 text-[11px] text-cyan-800">
-                  Nominal akan ditambah kode unik 3 digit di halaman QRIS.
+                  Total nominal yang dibayarkan sesuai dengan jumlah point yang
+                  Anda pilih.
                 </p>
               </div>
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import {
-  createVoteOrderWithUniqueCode,
+  createVoteOrder,
   MAX_VOTE_QTY,
   OrderAllocationError,
 } from "@/lib/unique-code";
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await createVoteOrderWithUniqueCode({
+    const result = await createVoteOrder({
       eventId,
       candidateId,
       voterName: voterName.slice(0, 120),
@@ -95,7 +95,6 @@ export async function POST(req: NextRequest) {
           candidateId: result.order.candidateId,
           voteQty: result.order.voteQty,
           baseAmount: result.order.baseAmount,
-          uniqueCode: result.order.uniqueCode,
           totalAmount: result.order.totalAmount,
           status: result.order.status,
           expiresAt: result.order.expiresAt.toISOString(),

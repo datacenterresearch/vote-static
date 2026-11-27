@@ -71,7 +71,6 @@ interface OrderItem {
   supportMessage: string | null;
   voteQty: number;
   baseAmount: number;
-  uniqueCode: number;
   totalAmount: number;
   status: string;
   expiresAt: string;
@@ -111,7 +110,6 @@ interface ProofItem {
     isAnonymous?: boolean;
     voteQty?: number;
     baseAmount?: number;
-    uniqueCode?: number;
     totalAmount: number;
     status: string;
     createdAt?: string;
@@ -128,7 +126,6 @@ interface ProofInspectContext {
   candidateLabel: string;
   voteQty: number | null;
   baseAmount: number | null;
-  uniqueCode: number | null;
   totalAmount: number;
   orderStatus: string;
   orderCreatedAt: string | null;
@@ -157,7 +154,6 @@ interface OverviewPayload {
   summary: {
     totalPaidAmount: number;
     totalBaseRevenue: number;
-    totalUniqueCodeRevenue: number;
     totalMatchedMutationsAmount: number;
     totalMatchedMutationsCount: number;
     totalVotesRecorded: number;
@@ -604,7 +600,6 @@ export default function AdminDashboardClient() {
       candidateLabel: `No. ${o.candidate.number} ${o.candidate.name}`,
       voteQty: o.voteQty,
       baseAmount: o.baseAmount,
-      uniqueCode: o.uniqueCode,
       totalAmount: o.totalAmount,
       orderStatus: o.status,
       orderCreatedAt: o.createdAt,
@@ -629,7 +624,6 @@ export default function AdminDashboardClient() {
         candidateLabel: `No. ${matchedOrder.candidate.number} ${matchedOrder.candidate.name}`,
         voteQty: matchedOrder.voteQty,
         baseAmount: matchedOrder.baseAmount,
-        uniqueCode: matchedOrder.uniqueCode,
         totalAmount: matchedOrder.totalAmount,
         orderStatus: matchedOrder.status,
         orderCreatedAt: matchedOrder.createdAt,
@@ -645,7 +639,6 @@ export default function AdminDashboardClient() {
         candidateLabel: `No. ${p.order.candidate.number} ${p.order.candidate.name}`,
         voteQty: p.order.voteQty ?? null,
         baseAmount: p.order.baseAmount ?? null,
-        uniqueCode: p.order.uniqueCode ?? null,
         totalAmount: p.order.totalAmount,
         orderStatus: p.order.status,
         orderCreatedAt: p.order.createdAt ?? null,
@@ -914,8 +907,7 @@ export default function AdminDashboardClient() {
               {formatRupiah(data.summary.totalPaidAmount)}
             </div>
             <div className="mt-1 text-[11px] text-slate-500">
-              Pokok: {formatRupiah(data.summary.totalBaseRevenue)} + Kode Unik:{" "}
-              {formatRupiah(data.summary.totalUniqueCodeRevenue)}
+              Total nilai vote: {formatRupiah(data.summary.totalBaseRevenue)}
             </div>
           </div>
 
@@ -1112,9 +1104,6 @@ export default function AdminDashboardClient() {
                           <div className="font-mono font-bold text-slate-900">
                             {formatRupiah(o.totalAmount)}
                           </div>
-                          <div className="text-[10px] text-slate-400">
-                            Pokok {formatRupiah(o.baseAmount)} + {o.uniqueCode}
-                          </div>
                         </td>
                         <td className="py-3 pr-3">
                           <span
@@ -1293,11 +1282,11 @@ export default function AdminDashboardClient() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700">
-                    Harga per Vote (Min Rp1.000)
+                    Harga per Vote (Rp)
                   </label>
                   <input
                     type="number"
-                    min={1000}
+                    min={1}
                     required
                     value={evPrice}
                     onChange={(e) => setEvPrice(Number(e.target.value))}
@@ -1805,7 +1794,8 @@ export default function AdminDashboardClient() {
               <span>Simulator Mutasi Masuk</span>
             </div>
             <p className="mt-1 text-xs text-slate-600">
-              Simulasikan mutasi masuk untuk menguji pencocokan nominal unik.
+              Simulasikan mutasi masuk untuk menguji pencocokan nominal
+              pembayaran.
             </p>
 
             <form onSubmit={handleSimulateMutation} className="mt-5 space-y-4">
@@ -1819,7 +1809,7 @@ export default function AdminDashboardClient() {
                   required
                   value={simAmount}
                   onChange={(e) => setSimAmount(e.target.value)}
-                  placeholder="Contoh: 2123"
+                  placeholder="Contoh: 2000"
                   className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2 font-mono text-sm font-bold"
                 />
               </div>
@@ -1988,11 +1978,11 @@ export default function AdminDashboardClient() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700">
-                    Harga per Vote (Min Rp1.000)
+                    Harga per Vote (Rp)
                   </label>
                   <input
                     type="number"
-                    min={1000}
+                    min={1}
                     required
                     value={editPrice}
                     onChange={(e) => setEditPrice(Number(e.target.value))}
@@ -2498,16 +2488,6 @@ export default function AdminDashboardClient() {
                       <div className="mt-1 font-mono text-2xl font-extrabold text-slate-900">
                         {formatRupiah(inspectingProofCtx.totalAmount)}
                       </div>
-                      {inspectingProofCtx.baseAmount !== null &&
-                        inspectingProofCtx.uniqueCode !== null && (
-                          <div className="mt-1 text-xs text-slate-600">
-                            Pokok {formatRupiah(inspectingProofCtx.baseAmount)}{" "}
-                            + Kode Unik{" "}
-                            <span className="font-mono font-bold text-slate-900">
-                              {inspectingProofCtx.uniqueCode}
-                            </span>
-                          </div>
-                        )}
                     </div>
 
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs space-y-1.5">

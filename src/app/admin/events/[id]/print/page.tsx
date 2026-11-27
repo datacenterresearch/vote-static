@@ -70,10 +70,6 @@ export default async function AdminEventPrintPage({
     (s, o) => s + o.voteQty * event.pricePerVote,
     0
   );
-  const totalUniqueCodeRevenue = paidOrders.reduce(
-    (s, o) => s + o.uniqueCode,
-    0
-  );
   const totalCandidateVotes = event.candidates.reduce(
     (s, c) => s + c.totalVotes,
     0
@@ -123,7 +119,6 @@ export default async function AdminEventPrintPage({
         supportMessage: o.supportMessage,
         voteQty: o.voteQty,
         baseAmount: o.baseAmount,
-        uniqueCode: o.uniqueCode,
         totalAmount: o.totalAmount,
         paidAt: o.paidAt ? o.paidAt.toISOString() : null,
         createdAt: o.createdAt.toISOString(),
@@ -137,7 +132,6 @@ export default async function AdminEventPrintPage({
         paidOrdersCount: paidOrders.length,
         totalPaidAmount,
         totalBaseRevenue,
-        totalUniqueCodeRevenue,
         matchedMutationsCount: matchedMutationsAgg._count,
         matchedMutationsAmount: matchedMutationsAgg._sum.amount ?? 0,
         statusCounts,

@@ -14,17 +14,3 @@ export function formatDateTimeId(value: Date | string): string {
     timeZone: "Asia/Jakarta",
   }).format(date);
 }
-
-export function splitUniqueTotalDisplay(totalAmount: number): {
-  prefix: string;
-  uniqueSuffix: string;
-} {
-  const formatted = new Intl.NumberFormat("id-ID").format(totalAmount);
-  if (formatted.length <= 3) {
-    return { prefix: "", uniqueSuffix: formatted };
-  }
-  return {
-    prefix: formatted.slice(0, -3),
-    uniqueSuffix: formatted.slice(-3),
-  };
-}

@@ -61,7 +61,6 @@ export default async function PayOrderPage({
     supportMessage: order.supportMessage,
     voteQty: order.voteQty,
     baseAmount: order.baseAmount,
-    uniqueCode: order.uniqueCode,
     totalAmount: order.totalAmount,
     expiresAt: order.expiresAt.toISOString(),
     paidAt: order.paidAt ? order.paidAt.toISOString() : null,

@@ -42,7 +42,6 @@ export interface PrintPaidOrderItem {
   supportMessage: string | null;
   voteQty: number;
   baseAmount: number;
-  uniqueCode: number;
   totalAmount: number;
   paidAt: string | null;
   createdAt: string;
@@ -60,7 +59,6 @@ export interface PrintSummary {
   paidOrdersCount: number;
   totalPaidAmount: number;
   totalBaseRevenue: number;
-  totalUniqueCodeRevenue: number;
   matchedMutationsCount: number;
   matchedMutationsAmount: number;
   statusCounts: {
@@ -289,8 +287,7 @@ export default function AdminEventPrintClient({
                   {formatRupiah(summary.totalPaidAmount)}
                 </div>
                 <div className="mt-0.5 text-[11px] text-slate-500">
-                  Pokok {formatRupiah(summary.totalBaseRevenue)} • Kode Unik{" "}
-                  {formatRupiah(summary.totalUniqueCodeRevenue)}
+                  Dari {formatNumberId(summary.paidOrdersCount)} transaksi lunas
                 </div>
               </div>
 
@@ -337,7 +334,7 @@ export default function AdminEventPrintClient({
                     <th className="px-3 py-2.5 text-right">Suara Sah</th>
                     <th className="px-3 py-2.5 text-right">Persentase</th>
                     <th className="px-3 py-2.5 text-right">
-                      Estimasi Nominal Pokok
+                      Estimasi Nominal
                     </th>
                   </tr>
                 </thead>
@@ -423,8 +420,6 @@ export default function AdminEventPrintClient({
                       <th className="px-2.5 py-2">Pemilih</th>
                       <th className="px-2.5 py-2">Kandidat</th>
                       <th className="px-2.5 py-2 text-right">Qty</th>
-                      <th className="px-2.5 py-2 text-right">Pokok</th>
-                      <th className="px-2.5 py-2 text-right">Kode</th>
                       <th className="px-2.5 py-2 text-right">Total</th>
                       {showMessages && (
                         <th className="px-2.5 py-2">Pesan Dukungan</th>
@@ -449,12 +444,6 @@ export default function AdminEventPrintClient({
                         <td className="px-2.5 py-2 text-right font-mono font-semibold">
                           {formatNumberId(o.voteQty)}
                         </td>
-                        <td className="px-2.5 py-2 text-right font-mono text-slate-700">
-                          {formatRupiah(o.baseAmount)}
-                        </td>
-                        <td className="px-2.5 py-2 text-right font-mono text-slate-600">
-                          {o.uniqueCode}
-                        </td>
                         <td className="px-2.5 py-2 text-right font-mono font-bold text-slate-900">
                           {formatRupiah(o.totalAmount)}
                         </td>
@@ -474,7 +463,7 @@ export default function AdminEventPrintClient({
                     {paidOrders.length === 0 && (
                       <tr>
                         <td
-                          colSpan={showMessages ? 9 : 8}
+                          colSpan={showMessages ? 7 : 6}
                           className="px-3 py-6 text-center text-slate-500"
                         >
                           Belum ada transaksi berstatus PAID pada event ini.

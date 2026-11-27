@@ -52,7 +52,7 @@ const VOTE_STEPS = [
   {
     step: "03",
     title: "Bayar via QRIS",
-    desc: "Scan kode QRIS yang muncul dan pastikan nominal transfer tepat hingga 3 digit kode unik.",
+    desc: "Scan kode QRIS yang muncul dan lakukan pembayaran sesuai total nominal yang tertera.",
   },
   {
     step: "04",
@@ -67,8 +67,8 @@ const FAQS = [
     a: "Tidak. Anda bisa langsung memilih kandidat, mengisi nama atau memilih opsi Anonim, lalu melakukan pembayaran QRIS.",
   },
   {
-    q: "Mengapa ada 3 digit angka tambahan pada total pembayaran?",
-    a: "Tiga digit kode unik tersebut membantu sistem mengenali pembayaran Anda secara otomatis tanpa perlu menunggu konfirmasi manual.",
+    q: "Bagaimana cara menentukan jumlah point / vote?",
+    a: "Anda dapat memilih paket cepat yang tersedia atau memasukkan jumlah custom point sesuai keinginan di formulir checkout sebelum melakukan pembayaran.",
   },
   {
     q: "Aplikasi pembayaran apa saja yang didukung?",

@@ -15,11 +15,7 @@ import {
   RefreshCw,
   XCircle,
 } from "lucide-react";
-import {
-  formatDateTimeId,
-  formatRupiah,
-  splitUniqueTotalDisplay,
-} from "@/lib/format";
+import { formatDateTimeId, formatRupiah } from "@/lib/format";
 
 export interface PayOrderDetail {
   id: string;
@@ -29,7 +25,6 @@ export interface PayOrderDetail {
   supportMessage: string | null;
   voteQty: number;
   baseAmount: number;
-  uniqueCode: number;
   totalAmount: number;
   expiresAt: string;
   paidAt: string | null;
@@ -145,7 +140,6 @@ export default function PayOrderClient({
   const remainingMin = Math.floor(remainingMs / 60000);
   const remainingSec = Math.floor((remainingMs % 60000) / 1000);
 
-  const { prefix, uniqueSuffix } = splitUniqueTotalDisplay(order.totalAmount);
   const displayVoterName = order.isAnonymous ? "Anonim" : order.voterName;
 
   async function handleCopyAmount() {
@@ -342,14 +336,11 @@ export default function PayOrderClient({
           <div className="p-5 sm:p-8">
             <div className="rounded-2xl border border-cyan-100 bg-gradient-to-br from-cyan-50/90 to-teal-50/70 p-4 text-center sm:p-5">
               <div className="text-xs font-bold uppercase tracking-wider text-cyan-800">
-                Total Transfer (Tepat 3 Digit Akhir)
+                Total Pembayaran
               </div>
               <div className="mt-2.5 flex flex-wrap items-center justify-center gap-3">
                 <div className="font-mono text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
-                  <span>Rp{prefix}</span>
-                  <span className="rounded-lg bg-amber-300 px-1.5 py-0.5 text-slate-950">
-                    {uniqueSuffix}
-                  </span>
+                  {formatRupiah(order.totalAmount)}
                 </div>
                 <button
                   type="button"
@@ -370,10 +361,9 @@ export default function PayOrderClient({
                 </button>
               </div>
               <div className="mt-2 text-xs text-slate-600">
-                {order.voteQty} vote ({formatRupiah(order.baseAmount)}) + Kode
-                Unik{" "}
+                {order.voteQty} vote ×{" "}
                 <strong className="text-slate-900">
-                  {String(order.uniqueCode).padStart(3, "0")}
+                  {formatRupiah(order.event.pricePerVote)}
                 </strong>
               </div>
             </div>
@@ -438,7 +428,7 @@ export default function PayOrderClient({
 
               <p className="mt-3 max-w-md text-center text-xs leading-relaxed text-slate-500">
                 {useStaticFallback || !order.dynamicQrisDataUrl
-                  ? "Scan QRIS di atas dengan aplikasi bank atau e-wallet, lalu masukkan nominal persis sampai 3 digit terakhir."
+                  ? "Scan QRIS di atas dengan aplikasi bank atau e-wallet, lalu masukkan nominal pembayaran sesuai total di atas."
                   : "Scan QRIS di atas menggunakan aplikasi bank atau e-wallet Anda."}
               </p>
             </div>

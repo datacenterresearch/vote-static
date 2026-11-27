@@ -68,7 +68,6 @@ export async function GET() {
       select: {
         totalAmount: true,
         baseAmount: true,
-        uniqueCode: true,
         voteQty: true,
         event: { select: { pricePerVote: true } },
       },
@@ -92,16 +91,11 @@ export async function GET() {
     (sum, o) => sum + o.voteQty * o.event.pricePerVote,
     0
   );
-  const totalUniqueCodeRevenue = paidOrdersAgg.reduce(
-    (sum, o) => sum + o.uniqueCode,
-    0
-  );
 
   return NextResponse.json({
     summary: {
       totalPaidAmount,
       totalBaseRevenue,
-      totalUniqueCodeRevenue,
       totalMatchedMutationsAmount: matchedMutationsAgg._sum.amount ?? 0,
       totalMatchedMutationsCount: matchedMutationsAgg._count,
       totalVotesRecorded: ledgerAgg._sum.voteQty ?? 0,
