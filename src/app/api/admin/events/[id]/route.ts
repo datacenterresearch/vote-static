@@ -27,6 +27,7 @@ export async function PATCH(
 
   const contentType = req.headers.get("content-type") ?? "";
   const data: Record<string, unknown> = {};
+  let uploadedQrisPath: string | null = null;
 
   if (contentType.includes("multipart/form-data")) {
     const formData = await req.formData();
@@ -139,6 +140,7 @@ export async function PATCH(
     if (qrisImage instanceof File && qrisImage.size > 0) {
       try {
         const saved = await saveUploadedImage("qris", qrisImage);
+        uploadedQrisPath = saved.relativePath;
         data.qrisImagePath = saved.relativePath;
       } catch (err) {
         return NextResponse.json(
@@ -193,8 +195,19 @@ export async function PATCH(
       return event;
     });
 
+    if (
+      uploadedQrisPath &&
+      existing.qrisImagePath &&
+      existing.qrisImagePath !== uploadedQrisPath
+    ) {
+      await deleteUploadedFile(existing.qrisImagePath);
+    }
+
     return NextResponse.json({ event: updated });
   } catch (err) {
+    if (uploadedQrisPath) {
+      await deleteUploadedFile(uploadedQrisPath);
+    }
     if (
       err instanceof Prisma.PrismaClientKnownRequestError &&
       err.code === "P2002"

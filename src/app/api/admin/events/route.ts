@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { validateQrisPayload } from "@/lib/qris";
-import { saveUploadedImage } from "@/lib/storage";
+import { deleteUploadedFile, saveUploadedImage } from "@/lib/storage";
 import { MIN_PRICE_PER_VOTE } from "@/lib/unique-code";
 
 export const dynamic = "force-dynamic";
@@ -140,6 +140,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ event }, { status: 201 });
   } catch (err) {
+    if (qrisImagePath) {
+      await deleteUploadedFile(qrisImagePath);
+    }
     if (
       err instanceof Prisma.PrismaClientKnownRequestError &&
       err.code === "P2002"

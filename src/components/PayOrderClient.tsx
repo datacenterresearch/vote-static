@@ -66,9 +66,14 @@ export default function PayOrderClient({
 }) {
   const [order, setOrder] = useState<PayOrderDetail>(initialOrder);
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
+  const [clockOffsetMs, setClockOffsetMs] = useState<number>(
+    () => new Date(initialOrder.serverNow).getTime() - Date.now()
+  );
   const [useStaticFallback, setUseStaticFallback] = useState(
     !initialOrder.dynamicQrisDataUrl
   );
+  const [qrImageError, setQrImageError] = useState(false);
+  const [qrRetryNonce, setQrRetryNonce] = useState(0);
   const [copied, setCopied] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
@@ -86,6 +91,11 @@ export default function PayOrderClient({
       if (res.ok) {
         const data = (await res.json()) as { order: PayOrderDetail };
         setOrder(data.order);
+        if (data.order.serverNow) {
+          setClockOffsetMs(
+            new Date(data.order.serverNow).getTime() - Date.now()
+          );
+        }
       }
     } catch {
       // ignore transient network errors during polling
@@ -107,8 +117,31 @@ export default function PayOrderClient({
     return () => clearInterval(poller);
   }, [order.status, fetchOrder]);
 
+  useEffect(() => {
+    if (!order.dynamicQrisDataUrl) {
+      setUseStaticFallback(true);
+    }
+  }, [order.dynamicQrisDataUrl]);
+
+  const activeQrImage =
+    !useStaticFallback && order.dynamicQrisDataUrl
+      ? order.dynamicQrisDataUrl
+      : order.event.qrisImageUrl;
+
+  const activeQrImageSrc =
+    activeQrImage &&
+    activeQrImage.startsWith("/api/files/") &&
+    qrRetryNonce > 0
+      ? `${activeQrImage}?r=${qrRetryNonce}`
+      : activeQrImage;
+
+  useEffect(() => {
+    setQrImageError(false);
+  }, [activeQrImage]);
+
+  const effectiveNowMs = nowMs + clockOffsetMs;
   const expiresMs = new Date(order.expiresAt).getTime();
-  const remainingMs = Math.max(0, expiresMs - nowMs);
+  const remainingMs = Math.max(0, expiresMs - effectiveNowMs);
   const remainingMin = Math.floor(remainingMs / 60000);
   const remainingSec = Math.floor((remainingMs % 60000) / 1000);
 
@@ -186,11 +219,6 @@ export default function PayOrderClient({
       setUploadingProof(false);
     }
   }
-
-  const activeQrImage =
-    !useStaticFallback && order.dynamicQrisDataUrl
-      ? order.dynamicQrisDataUrl
-      : order.event.qrisImageUrl;
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
@@ -352,13 +380,40 @@ export default function PayOrderClient({
 
             {/* QRIS Code Section */}
             <div className="mt-6 flex flex-col items-center">
-              {activeQrImage ? (
+              {activeQrImageSrc && !qrImageError ? (
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
                   <img
-                    src={activeQrImage}
+                    src={activeQrImageSrc}
                     alt="QRIS Pembayaran Vote"
+                    onError={() => {
+                      if (useStaticFallback && order.dynamicQrisDataUrl) {
+                        setUseStaticFallback(false);
+                      } else {
+                        setQrImageError(true);
+                      }
+                    }}
                     className="h-60 w-60 object-contain sm:h-64 sm:w-64"
                   />
+                </div>
+              ) : qrImageError ? (
+                <div className="flex h-60 w-60 flex-col items-center justify-center rounded-2xl border border-dashed border-amber-300 bg-amber-50/80 p-5 text-center text-xs text-amber-900 sm:h-64 sm:w-64">
+                  <AlertTriangle className="mb-2 h-8 w-8 text-amber-600" />
+                  <span>
+                    Gambar QRIS gagal dimuat. Periksa koneksi internet atau coba
+                    muat ulang.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQrImageError(false);
+                      setQrRetryNonce((n) => n + 1);
+                      void fetchOrder();
+                    }}
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-[#1C3458] px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-[#152845]"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    <span>Muat Ulang QRIS</span>
+                  </button>
                 </div>
               ) : (
                 <div className="flex h-60 w-60 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-xs text-slate-500 sm:h-64 sm:w-64">

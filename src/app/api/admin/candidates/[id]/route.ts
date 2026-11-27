@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
+import { deleteUploadedFile } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,8 @@ export async function DELETE(
       },
     });
   });
+
+  await deleteUploadedFile(candidate.photoPath);
 
   return NextResponse.json({ ok: true });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CheckCircle2,
@@ -9,6 +9,8 @@ import {
   Heart,
   Lock,
   MessageSquareHeart,
+  Minus,
+  Plus,
   Sparkles,
   Trophy,
   UserCheck,
@@ -16,6 +18,9 @@ import {
   X,
 } from "lucide-react";
 import { formatDateTimeId, formatRupiah } from "@/lib/format";
+
+const VOTE_QTY_PRESETS = [1, 5, 10, 25, 50, 100];
+const MAX_VOTE_QTY = 10_000;
 
 export interface PublicCandidate {
   id: string;
@@ -98,9 +103,19 @@ export default function EventVotingClient({
   const [voterName, setVoterName] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [supportMessage, setSupportMessage] = useState("");
-  const [voteQty, setVoteQty] = useState<number>(1);
+  const [voteQtyInput, setVoteQtyInput] = useState<string>("1");
+  const [isCustomMode, setIsCustomMode] = useState<boolean>(false);
+  const customQtyInputRef = useRef<HTMLInputElement | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const parsedVoteQty = useMemo(() => {
+    const trimmed = voteQtyInput.trim();
+    if (!/^\d+$/.test(trimmed)) return null;
+    const num = Number.parseInt(trimmed, 10);
+    if (!Number.isInteger(num) || num < 1 || num > MAX_VOTE_QTY) return null;
+    return num;
+  }, [voteQtyInput]);
 
   useEffect(() => {
     const timer = setInterval(() => setNowMs(Date.now()), 1000);
@@ -165,6 +180,10 @@ export default function EventVotingClient({
   async function handleCheckout(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedCandidate) return;
+    if (parsedVoteQty === null) {
+      setErrorMsg("Masukkan jumlah point antara 1 hingga 10.000.");
+      return;
+    }
     setErrorMsg(null);
     setSubmitting(true);
 
@@ -180,7 +199,7 @@ export default function EventVotingClient({
           isAnonymous,
           supportMessage: supportMessage.trim() || undefined,
           sessionKey,
-          voteQty,
+          voteQty: parsedVoteQty,
         }),
       });
 
@@ -451,7 +470,8 @@ export default function EventVotingClient({
                     disabled={!votingStatus.canVote}
                     onClick={() => {
                       setErrorMsg(null);
-                      setVoteQty(1);
+                      setVoteQtyInput("1");
+                      setIsCustomMode(false);
                       setSupportMessage("");
                       setSelectedCandidate(cand);
                     }}
@@ -536,35 +556,118 @@ export default function EventVotingClient({
             <form onSubmit={handleCheckout} className="mt-5 space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700">
-                  Jumlah Vote
+                  Jumlah Point / Vote
                 </label>
                 <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                  {[1, 5, 10, 25].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setVoteQty(preset)}
-                      className={`rounded-xl border px-3.5 py-2 text-xs font-semibold transition ${
-                        voteQty === preset
-                          ? "border-cyan-600 bg-cyan-50 text-cyan-800"
-                          : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                      }`}
+                  {VOTE_QTY_PRESETS.map((preset) => {
+                    const active =
+                      !isCustomMode && parsedVoteQty === preset;
+                    return (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => {
+                          setVoteQtyInput(String(preset));
+                          setIsCustomMode(false);
+                        }}
+                        className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${
+                          active
+                            ? "border-cyan-600 bg-cyan-50 text-cyan-800"
+                            : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        {preset}x
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomMode(true);
+                      requestAnimationFrame(() => {
+                        customQtyInputRef.current?.focus();
+                        customQtyInputRef.current?.select();
+                      });
+                    }}
+                    className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${
+                      isCustomMode ||
+                      (parsedVoteQty !== null &&
+                        !VOTE_QTY_PRESETS.includes(parsedVoteQty))
+                        ? "border-cyan-600 bg-cyan-50 text-cyan-800"
+                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    Custom
+                  </button>
+                </div>
+
+                <div className="mt-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <label
+                      htmlFor="custom-vote-qty-input"
+                      className="text-[11px] font-semibold text-slate-700"
                     >
-                      {preset}x
+                      Custom Jumlah Point (1 – 10.000)
+                    </label>
+                  </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextVal = Math.max(
+                          1,
+                          (parsedVoteQty ?? 2) - 1
+                        );
+                        setVoteQtyInput(String(nextVal));
+                        setIsCustomMode(true);
+                      }}
+                      disabled={parsedVoteQty !== null && parsedVoteQty <= 1}
+                      aria-label="Kurangi jumlah point"
+                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-100 disabled:opacity-40"
+                    >
+                      <Minus className="h-4 w-4" />
                     </button>
-                  ))}
-                  <input
-                    type="number"
-                    min={1}
-                    max={1000}
-                    value={voteQty}
-                    onChange={(e) =>
-                      setVoteQty(
-                        Math.max(1, Math.min(1000, Number(e.target.value) || 1))
-                      )
-                    }
-                    className="w-24 rounded-xl border border-slate-300 px-3 py-2 text-center text-sm font-semibold focus:border-cyan-600 focus:outline-none"
-                  />
+                    <input
+                      id="custom-vote-qty-input"
+                      ref={customQtyInputRef}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      placeholder="Contoh: 15"
+                      value={voteQtyInput}
+                      onChange={(e) => {
+                        const digitsOnly = e.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 5);
+                        setVoteQtyInput(digitsOnly);
+                        setIsCustomMode(true);
+                      }}
+                      className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-center text-sm font-bold text-slate-900 focus:border-cyan-600 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextVal = Math.min(
+                          MAX_VOTE_QTY,
+                          (parsedVoteQty ?? 0) + 1
+                        );
+                        setVoteQtyInput(String(nextVal));
+                        setIsCustomMode(true);
+                      }}
+                      disabled={
+                        parsedVoteQty !== null && parsedVoteQty >= MAX_VOTE_QTY
+                      }
+                      aria-label="Tambah jumlah point"
+                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-100 disabled:opacity-40"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
+                  {parsedVoteQty === null && (
+                    <p className="mt-1.5 text-[11px] font-medium text-amber-700">
+                      Masukkan angka antara 1 sampai 10.000 point.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -629,9 +732,17 @@ export default function EventVotingClient({
 
               <div className="rounded-2xl bg-cyan-50/70 p-3.5 text-xs text-slate-700">
                 <div className="flex items-center justify-between">
-                  <span>Total Vote ({voteQty}x)</span>
+                  <span>
+                    Total (
+                    {parsedVoteQty !== null
+                      ? new Intl.NumberFormat("id-ID").format(parsedVoteQty)
+                      : 0}{" "}
+                    point)
+                  </span>
                   <span className="text-sm font-bold text-slate-900">
-                    {formatRupiah(event.pricePerVote * voteQty)}
+                    {formatRupiah(
+                      event.pricePerVote * (parsedVoteQty ?? 0)
+                    )}
                   </span>
                 </div>
                 <p className="mt-1 text-[11px] text-cyan-800">
@@ -647,7 +758,7 @@ export default function EventVotingClient({
 
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || parsedVoteQty === null}
                 className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#1C3458] to-[#0E7490] px-4 py-3 text-sm font-semibold text-white shadow-xs transition hover:from-[#152845] hover:to-[#0891B2] disabled:opacity-60"
               >
                 <CheckCircle2 className="h-4 w-4" />

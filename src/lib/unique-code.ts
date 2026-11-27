@@ -2,6 +2,8 @@ import { OrderStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export const MIN_PRICE_PER_VOTE = 1000;
+export const MAX_VOTE_QTY = 10_000;
+export const MAX_TOTAL_ORDER_AMOUNT = 2_000_000_000;
 export const ORDER_TTL_MINUTES = 15;
 export const QUARANTINE_MINUTES = 45;
 export const MIN_UNIQUE_CODE = 1;
@@ -267,6 +269,16 @@ export async function createVoteOrderWithUniqueCode(
         }
 
         const baseAmount = event.pricePerVote * input.voteQty;
+        if (
+          !Number.isSafeInteger(baseAmount) ||
+          baseAmount + MAX_UNIQUE_CODE > MAX_TOTAL_ORDER_AMOUNT
+        ) {
+          throw new OrderAllocationError(
+            "AMOUNT_TOO_LARGE",
+            "Total nominal transaksi melebihi batas maksimal sistem.",
+            400
+          );
+        }
 
         // Fetch orders relevant for active locks, quarantine, and LRU history
         const orders = await tx.voteOrder.findMany({

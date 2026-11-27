@@ -158,3 +158,14 @@ model ListenerHeartbeat {
   status     String
   metadata   Json?
 }
+
+model UploadedFile {
+  path      String   @id
+  mimeType  String
+  size      Int
+  sha256    String
+  data      Bytes
+  createdAt DateTime @default(now())
+
+  @@index([sha256])
+}

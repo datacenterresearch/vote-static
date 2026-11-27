@@ -2,7 +2,7 @@ import { OrderStatus, Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import { saveUploadedImage } from "@/lib/storage";
+import { deleteUploadedFile, saveUploadedImage } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -119,6 +119,7 @@ export async function POST(
       { status: 201 }
     );
   } catch (err) {
+    await deleteUploadedFile(saved.relativePath);
     if (
       err instanceof Prisma.PrismaClientKnownRequestError &&
       err.code === "P2002"

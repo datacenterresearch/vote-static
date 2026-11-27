@@ -221,6 +221,7 @@ export default function AdminDashboardClient() {
   const [editQrisFile, setEditQrisFile] = useState<File | null>(null);
   const [editBlind, setEditBlind] = useState(false);
   const [editActive, setEditActive] = useState(true);
+  const [editQrisImgError, setEditQrisImgError] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
@@ -259,6 +260,11 @@ export default function AdminDashboardClient() {
   const [proofReviewNote, setProofReviewNote] = useState("");
   const [proofActionBusy, setProofActionBusy] = useState(false);
   const [proofActionError, setProofActionError] = useState<string | null>(null);
+  const [proofImageError, setProofImageError] = useState(false);
+  const [proofRetryNonce, setProofRetryNonce] = useState(0);
+  const [failedThumbIds, setFailedThumbIds] = useState<Record<string, boolean>>(
+    {}
+  );
 
   const [confirmOrderAction, setConfirmOrderAction] = useState<{
     type: "COMPLETE" | "CANCEL" | "DELETE";
@@ -371,6 +377,7 @@ export default function AdminDashboardClient() {
     setEditEnds(toDateTimeLocalValue(ev.endsAt));
     setEditQrisRaw(ev.qrisRawPayload ?? "");
     setEditQrisFile(null);
+    setEditQrisImgError(false);
     setEditBlind(ev.isBlindMode);
     setEditActive(ev.isActive);
     setEditError(null);
@@ -604,6 +611,8 @@ export default function AdminDashboardClient() {
       proofs: o.proofs,
     });
     setSelectedProofIdx(0);
+    setProofImageError(false);
+    setProofRetryNonce(0);
     setProofReviewNote("");
     setProofActionError(null);
   }
@@ -656,6 +665,8 @@ export default function AdminDashboardClient() {
       });
       setSelectedProofIdx(0);
     }
+    setProofImageError(false);
+    setProofRetryNonce(0);
     setProofReviewNote("");
     setProofActionError(null);
   }
@@ -1603,14 +1614,24 @@ export default function AdminDashboardClient() {
                         <button
                           type="button"
                           onClick={() => openProofInspectFromProofItem(p)}
-                          className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 transition hover:opacity-90"
+                          className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 transition hover:opacity-90"
                           title="Periksa bukti pembayaran"
                         >
-                          <img
-                            src={p.imageUrl}
-                            alt={`Bukti ${p.orderId}`}
-                            className="h-full w-full object-cover"
-                          />
+                          {failedThumbIds[p.id] ? (
+                            <ImageIcon className="h-6 w-6 text-slate-400" />
+                          ) : (
+                            <img
+                              src={p.imageUrl}
+                              alt={`Bukti ${p.orderId}`}
+                              onError={() =>
+                                setFailedThumbIds((prev) => ({
+                                  ...prev,
+                                  [p.id]: true,
+                                }))
+                              }
+                              className="h-full w-full object-cover"
+                            />
+                          )}
                         </button>
                         <div>
                           <div className="font-bold text-slate-900">
@@ -2026,14 +2047,26 @@ export default function AdminDashboardClient() {
                 </label>
                 {editingEvent.qrisImageUrl && (
                   <div className="mt-1.5 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-2">
-                    <img
-                      src={editingEvent.qrisImageUrl}
-                      alt="QRIS saat ini"
-                      className="h-12 w-12 rounded-lg object-contain bg-white"
-                    />
-                    <span className="text-[11px] text-slate-600">
-                      Gambar QRIS saat ini aktif. Unggah file baru jika ingin
-                      mengganti.
+                    {editQrisImgError ? (
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-600">
+                        <AlertTriangle className="h-5 w-5" />
+                      </div>
+                    ) : (
+                      <img
+                        src={editingEvent.qrisImageUrl}
+                        alt="QRIS saat ini"
+                        onError={() => setEditQrisImgError(true)}
+                        className="h-12 w-12 rounded-lg bg-white object-contain"
+                      />
+                    )}
+                    <span
+                      className={`text-[11px] ${
+                        editQrisImgError ? "font-medium text-amber-700" : "text-slate-600"
+                      }`}
+                    >
+                      {editQrisImgError
+                        ? "Gambar QRIS lama tidak ditemukan di server. Silakan unggah ulang file QRIS di bawah agar tersimpan permanen."
+                        : "Gambar QRIS saat ini aktif. Unggah file baru jika ingin mengganti."}
                     </span>
                   </div>
                 )}
@@ -2378,7 +2411,11 @@ export default function AdminDashboardClient() {
                         <button
                           key={pr.id}
                           type="button"
-                          onClick={() => setSelectedProofIdx(idx)}
+                          onClick={() => {
+                            setSelectedProofIdx(idx);
+                            setProofImageError(false);
+                            setProofRetryNonce(0);
+                          }}
                           className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition ${
                             idx === safeIdx
                               ? "bg-[#1C3458] text-white"
@@ -2397,15 +2434,41 @@ export default function AdminDashboardClient() {
                     </div>
                   )}
 
-                  {activeProof && (
-                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-950/5 p-2">
-                      <img
-                        src={activeProof.imageUrl}
-                        alt={`Bukti pembayaran ${inspectingProofCtx.orderId}`}
-                        className="mx-auto max-h-[420px] w-full rounded-xl object-contain"
-                      />
-                    </div>
-                  )}
+                  {activeProof && (() => {
+                    const activeProofImgSrc =
+                      proofRetryNonce > 0
+                        ? `${activeProof.imageUrl}?r=${proofRetryNonce}`
+                        : activeProof.imageUrl;
+                    return proofImageError ? (
+                      <div className="flex min-h-[260px] flex-col items-center justify-center rounded-2xl border border-dashed border-amber-300 bg-amber-50/80 p-6 text-center text-xs text-amber-900">
+                        <AlertTriangle className="mb-2 h-8 w-8 text-amber-600" />
+                        <p className="font-semibold">
+                          Gambar bukti pembayaran gagal dimuat atau file lama
+                          tidak ditemukan di server.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProofImageError(false);
+                            setProofRetryNonce((n) => n + 1);
+                          }}
+                          className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-[#1C3458] px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-[#152845]"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" />
+                          <span>Muat Ulang Gambar</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-950/5 p-2">
+                        <img
+                          src={activeProofImgSrc}
+                          alt={`Bukti pembayaran ${inspectingProofCtx.orderId}`}
+                          onError={() => setProofImageError(true)}
+                          className="mx-auto max-h-[420px] w-full rounded-xl object-contain"
+                        />
+                      </div>
+                    );
+                  })()}
 
                   {activeProof && (
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs">

@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
-import { saveUploadedImage } from "@/lib/storage";
+import { deleteUploadedFile, saveUploadedImage } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -78,6 +78,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ candidate }, { status: 201 });
   } catch (err) {
+    if (photoPath) {
+      await deleteUploadedFile(photoPath);
+    }
     if (
       err instanceof Prisma.PrismaClientKnownRequestError &&
       err.code === "P2002"

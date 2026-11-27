@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import {
   createVoteOrderWithUniqueCode,
+  MAX_VOTE_QTY,
   OrderAllocationError,
 } from "@/lib/unique-code";
 
@@ -65,9 +66,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!Number.isInteger(voteQty) || voteQty < 1 || voteQty > 1000) {
+  if (!Number.isInteger(voteQty) || voteQty < 1 || voteQty > MAX_VOTE_QTY) {
     return NextResponse.json(
-      { error: "Jumlah vote harus bilangan bulat antara 1 hingga 1000." },
+      {
+        error:
+          "Jumlah point/vote harus bilangan bulat antara 1 hingga 10.000.",
+      },
       { status: 400 }
     );
   }
